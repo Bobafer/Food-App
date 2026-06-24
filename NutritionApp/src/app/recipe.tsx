@@ -10,10 +10,11 @@ export const Recipe = () => {
     const [showPortion, setShowPortion] = useState(false);
 
     return(
-        <View style={styles.container}> 
-            <TouchableOpacity onPress={() => setShowPortion(!showPortion)} activeOpacity={0.8}> 
+        <TouchableOpacity 
+            style={styles.container}
+            onPress={() => setShowPortion(!showPortion)} 
+            activeOpacity={0.8}> 
                 <Image source ={pizza} style ={styles.image}></Image>
-            </TouchableOpacity>
             
             <View style={styles.textWrapper}>
                 <Text style={styles.recpieTitle}>Pizza</Text>
@@ -25,8 +26,7 @@ export const Recipe = () => {
             </View>
 
             {showPortion && <Portion />}
-        </View>
-
+        </TouchableOpacity>
     );
 
 };
