@@ -1,10 +1,12 @@
 import { Text, View, StyleSheet, } from "react-native";
 import {Recipe} from './recipe'
+import {Portion} from './portion'
 
 export default function Index() {
   return (
     <View style={styles.container}>
       <Recipe></Recipe>
+      
     </View>
   );
 }
