@@ -10,7 +10,7 @@ export const Recipe = () => {
     const [showPortion, setShowPortion] = useState(false);
 
     return(
-        <TouchableOpacity 
+            <TouchableOpacity 
             style={styles.container}
             onPress={() => setShowPortion(!showPortion)} 
             activeOpacity={0.8}> 
