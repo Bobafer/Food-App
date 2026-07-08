@@ -1,6 +1,10 @@
-import {View, Text,  StyleSheet, Button} from 'react-native';
-import React from 'react';
+import {View, Text,  StyleSheet, Button,TouchableOpacity} from 'react-native';
+import React, { useState } from 'react';
+import { Instructions } from './instructions';
 export const Portion = () => {
+
+    const [showInstructions, setShowInstructions] = useState(false);
+
     return(
         <View style={styles.container}>
             <View style={styles.textWrapper}>
@@ -26,15 +30,15 @@ export const Portion = () => {
                     <Text style={styles.portionEggs}>Eggs:</Text>
                     <Text style={styles.totalValue}>1</Text>
                 </View>
-            </View>
-            <View>
-                <Button 
-                color = '#90EE90'
-                title='Details'
-                />
-               
-            </View>
-        
+                 <TouchableOpacity 
+                    style={styles.button} 
+                    onPress={() => setShowInstructions(!showInstructions)}
+                >
+                    <Text style={styles.buttonText}>Details</Text>
+                </TouchableOpacity> 
+                {/* {showInstructions ? <Instructions></Instructions> : null} */}
+                {showInstructions && <Instructions/>}
+            </View>    
         
         </View>
     );
@@ -109,6 +113,21 @@ const styles = StyleSheet.create({
         width: '100%',
         backgroundColor: '#000000',
         marginVertical: 10,
+    },
+    button: {
+        backgroundColor: '#90EE90',
+        alignSelf: 'center',
+        paddingVertical: 4,         
+        borderRadius: 8,            
+        alignItems: 'center',       
+        justifyContent: 'center',  
+        marginTop: 2,              
+        marginHorizontal: 12,
+    },
+    buttonText: {
+        color: '#000',
+        fontWeight:'bold',
+        padding:4
     }
 
 })

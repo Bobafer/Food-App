@@ -1,6 +1,7 @@
 import { Text, View, StyleSheet, } from "react-native";
 import {Recipe} from './recipe'
 import {Portion} from './portion'
+import {Instructions} from './instructions'
 
 export default function Index() {
   return (
