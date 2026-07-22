@@ -3,12 +3,18 @@ import {Recipe} from './recipe'
 import {Portion} from './portion'
 import {Instructions} from './instructions'
 import { MealPlan } from "./mealplan";
+import breakfast from '@/assets/images/cereals.png';
+import lunch from '@/assets/images/lunch.jpg';
+import dinner from '@/assets/images/dinner.png';
+
 
 export default function Index() {
   return (
     <View style={styles.container}>
       <Recipe></Recipe>
-      <MealPlan></MealPlan>
+      <MealPlan mealimage = {breakfast} mealtxt="Breakfast"></MealPlan>
+      <MealPlan mealimage = {lunch} mealtxt="Lunch"></MealPlan>
+      <MealPlan mealimage = {dinner} mealtxt="Dinner"></MealPlan>
     </View>
   );
 }
