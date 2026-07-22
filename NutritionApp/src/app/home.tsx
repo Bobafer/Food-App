@@ -8,7 +8,7 @@ import {
     StyleSheet,
     StatusBar,
 } from 'react-native';
-import {Ionicons,} from '@expo/vector-icons';
+import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
 
 const THUMBNAILS = [
 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=200',
@@ -56,6 +56,27 @@ export function HomeScreen({navigation}){
 
               <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
           </View>
+                      <View style={styles.tabBarPlaceholder}>
+                <View style={styles.tabItemPlaceholder}>
+                    <Ionicons name="home" size={24} color="#5C8A66" />
+                    <Text style={[styles.tabLabelPlaceholder, styles.tabLabelActivePlaceholder]}>Home</Text>
+                </View>
+                <View style={styles.tabItemPlaceholder}>
+                    <MaterialCommunityIcons name="silverware-fork-knife" size={24} color="#9AA39C" />
+                    <Text style={styles.tabLabelPlaceholder}>Recipes</Text>
+                </View>
+                <View style={styles.tabItemPlaceholder}>
+                    <Feather name="calendar" size={24} color="#9AA39C" />
+                    <Text style={styles.tabLabelPlaceholder}>Meal Plan</Text>
+                </View>
+                <View style={styles.tabItemPlaceholder}>
+                    <Feather name="user" size={24} color="#9AA39C" />
+                    <Text style={styles.tabLabelPlaceholder}>Profile</Text>
+                </View>
+            </View>
+
+
+
         </SafeAreaView>
     )
 }
@@ -140,7 +161,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E5E5',
   },
   caption: {
-    marginTop: 75,
+    marginTop: 50,
     fontSize: 20,
     fontWeight: '600',
     color: '#3F6647',
@@ -150,6 +171,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 16,
     overflow: 'hidden',
+  },
+  tabBarPlaceholder: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: '#EDEDED',
+    paddingTop: 10,
+    paddingBottom: 18,
+    backgroundColor: '#FFFFFF',
+  },
+  tabItemPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  tabLabelPlaceholder: {
+    fontSize: 11,
+    color: '#9AA39C',
+    marginTop: 4,
+  },
+  tabLabelActivePlaceholder: {
+    color: '#5C8A66',
+    fontWeight: '600',
   },
 });
 
