@@ -12,9 +12,9 @@ export default function Index() {
   return (
     <View style={styles.container}>
       <Recipe></Recipe>
-      <MealPlan mealimage = {breakfast} mealtxt="Breakfast"></MealPlan>
-      <MealPlan mealimage = {lunch} mealtxt="Lunch"></MealPlan>
-      <MealPlan mealimage = {dinner} mealtxt="Dinner"></MealPlan>
+      <MealPlan mealimage = {breakfast} mealtxt="Breakfast" mealname="breakfast_name"></MealPlan>
+      <MealPlan mealimage = {lunch} mealtxt="Lunch" mealname="lunch_name"></MealPlan>
+      <MealPlan mealimage = {dinner} mealtxt="Dinner" mealname="dinner_name"></MealPlan>
     </View>
   );
 }

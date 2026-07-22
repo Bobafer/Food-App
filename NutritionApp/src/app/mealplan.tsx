@@ -3,6 +3,7 @@ import { View,Text,Image,StyleSheet,TouchableOpacity, ImageSourcePropType } from
 type MealProps = {
     mealimage: ImageSourcePropType;
     mealtxt: string;
+    mealname: string;
 }
 
 export const MealPlan = (props: MealProps) => {
@@ -11,9 +12,12 @@ export const MealPlan = (props: MealProps) => {
                     style={styles.container}
                     //onPress={() => setShowPortion(!showPortion)}
                     activeOpacity={0.8}> 
+                    <View>
+                        <Image source = {props.mealimage} style = {styles.image}></Image>
+                        <Text style={styles.MealText}>{props.mealtxt}</Text>
+                    </View>
                     
-                    <Image source = {props.mealimage} style = {styles.image}></Image>
-                    <Text style={styles.breakfastText}>{props.mealtxt}</Text>
+                    <Text style={styles.MealName}>{props.mealname}</Text>
 
                     
         </TouchableOpacity>
@@ -26,25 +30,32 @@ export const MealPlan = (props: MealProps) => {
 const styles = StyleSheet.create({
     container: {
         borderRadius: 15,
-        backgroundColor: '#fff',
+        backgroundColor: '#ffffff',
         boxShadow: "0 4px 8px 0 rgb(0, 0, 0)",
         
         justifyContent: 'flex-start',
-        alignItems: 'center',
-        width:100,
-        height:100,
+        alignItems: 'flex-start',
+        width:350,
+        //height:90,
 
     },
     image:{
         borderTopRightRadius: '15px',
         borderTopLeftRadius: '15px',
-        padding:35,
+        padding:30,
         width:50,
         height:50,
         marginTop:5,
+        marginLeft:7,
     },
-    breakfastText:{
+    MealText:{
         padding:1,
         fontSize:17,
+        marginLeft:7,
+    },
+    MealName:{
+        padding:1,
+        fontSize:17,
+        marginLeft:100,
     },
 })
