@@ -1,12 +1,13 @@
 import { Text, View, StyleSheet, } from "react-native";
 import {Recipe} from './recipe'
 import {Portion} from './portion'
+import {InventoryScreen} from './inventory'
 
 export default function Index() {
   return (
     <View style={styles.container}>
-      <Recipe></Recipe>
-      
+      {/* <Recipe></Recipe> */}
+      <InventoryScreen></InventoryScreen>
     </View>
   );
 }
