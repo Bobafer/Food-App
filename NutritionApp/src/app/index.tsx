@@ -9,7 +9,7 @@ export default function Index() {
     <View style={styles.container}>
       {/* <Recipe></Recipe> */}
       <InventoryScreen></InventoryScreen>
-      <HomeScreen></HomeScreen>
+      {/* <HomeScreen></HomeScreen> */}
       
     </View>
   );
