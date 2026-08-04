@@ -8,6 +8,9 @@ import lunch from '@/assets/images/lunch.jpg';
 import dinner from '@/assets/images/dinner.png';
 import snack from '@/assets/images/snack.png';
 
+import { Button } from "expo-router/build/react-navigation";
+import {NavBar} from './NavBar'
+import {HomeScreen} from './home'
 
 export default function Index() {
   return (
@@ -17,6 +20,14 @@ export default function Index() {
       <MealPlan mealimage = {lunch} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
       <MealPlan mealimage = {dinner} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
       <MealPlan mealimage = {snack} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan>
+      {/* <Recipe></Recipe> */}
+
+      <NavBar>
+        
+      </NavBar>
+
+      {<HomeScreen></HomeScreen>}
+
     </View>
   );
 }
@@ -24,7 +35,7 @@ export default function Index() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
+    alignItems: "stretch",
     justifyContent: "center",
   },
 });
