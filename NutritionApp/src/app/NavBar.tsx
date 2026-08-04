@@ -7,6 +7,12 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Button } from '@react-navigation/elements';
+import { MealPlan } from './mealplanbuttons';
+import breakfast from '@/assets/images/cereals.png';
+import lunch from '@/assets/images/lunch.jpg';
+import dinner from '@/assets/images/dinner.png';
+import snack from '@/assets/images/snack.png';
+
 
 // function SettingsScreen() {
 //   React.useEffect(() => {
@@ -45,7 +51,10 @@ function MealPlanScreen () {
 
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Meal Plan Screen</Text>
+      <MealPlan mealimage = {breakfast} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
+            <MealPlan mealimage = {lunch} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
+            <MealPlan mealimage = {dinner} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
+            <MealPlan mealimage = {snack} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan>
     </View>
   );
 }
