@@ -1,4 +1,4 @@
-import {View, Text,  StyleSheet, Button,TouchableOpacity} from 'react-native';
+import {View, Text,  StyleSheet, Button,TouchableOpacity, ScrollView} from 'react-native';
 import React, { useState } from 'react';
 import { Instructions } from './instructions';
 export const Portion = () => {
@@ -8,36 +8,56 @@ export const Portion = () => {
     return(
         <View style={styles.container}>
             <View style={styles.textWrapper}>
-                <Text style={styles.portionTitle}>Portion Sizes</Text>
+                <Text style={styles.portionTitle}>
+                    {showInstructions ? 'Instructions' : 'Portion Sizes'}
+                </Text>
                 <View style={styles.line}></View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionCalories}>Calories:</Text>
-                    <Text style ={styles.totalValue}>400 calories</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionProtien}>Protien:</Text>
-                    <Text style={styles.totalValue}> 10 grams</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionCarbs}>Carbs:</Text>
-                    <Text style={styles.totalValue}>20 grams</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionFats}>Fat:</Text>
-                    <Text style={styles.totalValue}>50 grams</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionEggs}>Eggs:</Text>
-                    <Text style={styles.totalValue}>1</Text>
-                </View>
+
+                {/* ADDED: this ScrollView is the ONE scrollable area — since
+                    Instructions no longer brings its own box/scroll, whichever
+                    content is showing (macros or Instructions) scrolls inside
+                    this single box instead of creating a nested outline. */}
+                <ScrollView
+                    style={styles.contentScroll}
+                    showsVerticalScrollIndicator={false}
+                    nestedScrollEnabled
+                >
+                    {showInstructions ? (
+                        <Instructions />
+                    ) : (
+                        <>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionCalories}>Calories:</Text>
+                                <Text style ={styles.totalValue}>400 calories</Text>
+                            </View>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionProtien}>Protien:</Text>
+                                <Text style={styles.totalValue}> 10 grams</Text>
+                            </View>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionCarbs}>Carbs:</Text>
+                                <Text style={styles.totalValue}>20 grams</Text>
+                            </View>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionFats}>Fat:</Text>
+                                <Text style={styles.totalValue}>50 grams</Text>
+                            </View>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionEggs}>Eggs:</Text>
+                                <Text style={styles.totalValue}>1</Text>
+                            </View>
+                        </>
+                    )}
+                </ScrollView>
+
                  <TouchableOpacity 
                     style={styles.button} 
                     onPress={() => setShowInstructions(!showInstructions)}
                 >
-                    <Text style={styles.buttonText}>Details</Text>
+                    <Text style={styles.buttonText}>
+                        {showInstructions ? 'Back' : 'Details'}
+                    </Text>
                 </TouchableOpacity> 
-                {/* {showInstructions ? <Instructions></Instructions> : null} */}
-                {showInstructions && <Instructions/>}
             </View>    
         
         </View>
@@ -47,8 +67,13 @@ export const Portion = () => {
 
 const styles = StyleSheet.create({
     container: {
-        borderRadius: "15px",
-        //boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
+        // CHANGED: this box is now the one visible outline (was borderRadius
+        // as a string "15px", switched to a plain number — more reliable
+        // across web and native — and the shadow is turned back on so this
+        // reads as ONE clear box).
+        borderRadius: 15,
+        backgroundColor: '#fff',
+        boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
         justifyContent: 'flex-start',
         alignItems: 'center',
         marginTop: 5,
@@ -57,6 +82,12 @@ const styles = StyleSheet.create({
      textWrapper: {
         width: 250, 
         alignItems: 'flex-start'
+    },
+    // ADDED: caps how tall the swappable content area can get — beyond this
+    // height it scrolls in place rather than pushing the box taller and taller.
+    contentScroll: {
+        maxHeight: 220,
+        width: '100%',
     },
     portionTitle: {
         fontSize:14,

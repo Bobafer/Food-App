@@ -5,6 +5,7 @@ import {
     Text,
     Image,
     TouchableOpacity,
+    ScrollView,
     StyleSheet,
     StatusBar,
 } from 'react-native';
@@ -25,7 +26,10 @@ export function HomeScreen(){
                 <Text style={styles.headerTitle}>PickToPlate</Text>
             </View>
 
-            <View style={styles.content}>
+            <ScrollView
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
                 <Text style={styles.title}>Snap Your Fridge</Text>
 
               <TouchableOpacity
@@ -54,28 +58,13 @@ export function HomeScreen(){
                 ))}
               </View>
 
-              <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
-          </View>
-                      <View style={styles.tabBarPlaceholder}>
-                <View style={styles.tabItemPlaceholder}>
-                    <Ionicons name="home" size={24} color="#5C8A66" />
-                    <Text style={[styles.tabLabelPlaceholder, styles.tabLabelActivePlaceholder]}>Home</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <MaterialCommunityIcons name="silverware-fork-knife" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Recipes</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <Feather name="calendar" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Meal Plan</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <Feather name="user" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Profile</Text>
-                </View>
-            </View>
+              <Text style={styles.caption}>Analyze your ingredients in seconds</Text>
+          </ScrollView>
 
-
+            {/* The bottom tab bar used to be faked here with a static row of
+                icons. It's removed now — NavBar.js renders a REAL tab bar
+                (via React Navigation) around this screen instead, so this
+                component only needs to be the "Home" tab's content. */}
 
         </SafeAreaView>
     )
@@ -99,10 +88,13 @@ const styles = StyleSheet.create({
     color: '#3F6647',
   },
   content: {
-    flex: 1,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     paddingHorizontal: 24,
     alignItems: 'center',
     paddingTop: 28,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 22,
@@ -113,6 +105,7 @@ const styles = StyleSheet.create({
   cameraButton: {
     width: '100%',
     aspectRatio: 1.6,
+    maxHeight: 260,
     backgroundColor: '#6FA377',
     borderRadius: 20,
     alignItems: 'center',
@@ -172,34 +165,4 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
-  tabBarPlaceholder: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#EDEDED',
-    paddingTop: 10,
-    paddingBottom: 18,
-    backgroundColor: '#FFFFFF',
-  },
-  tabItemPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  tabLabelPlaceholder: {
-    fontSize: 11,
-    color: '#9AA39C',
-    marginTop: 4,
-  },
-  tabLabelActivePlaceholder: {
-    color: '#5C8A66',
-    fontWeight: '600',
-  },
 });
-
-
-
-
-
-
-
-
-
