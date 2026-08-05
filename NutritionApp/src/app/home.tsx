@@ -16,7 +16,7 @@ const THUMBNAILS = [
   'https://www.kitchenaid.com/is/image/content/dam/business-unit/kitchenaid/en-us/marketing-content/site-assets/page-content/blog/13-pro-tips-for-refrigerator-organization-that-lasts/Flyout-Image-1-fridge-organization-230351KRP01-027_KRSC536RPS_Set_sRGB-KRSC536RPS.jpg?fmt=webp-alpha&qlt=85,0&resMode=sharp2&op_usm=1.75,0.3,2,0&scl=1&constrain=fit,1',
 ];
 
-export function HomeScreen({navigation}){
+export function HomeScreen(){
     return(
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle='dark-content' />
