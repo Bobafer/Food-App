@@ -2,6 +2,7 @@ import {View, Text, Image, StyleSheet,TouchableOpacity} from 'react-native';
 import pizza from '@/assets/Recipe_Images/pizza.jpg';
 import React, {useState} from 'react';
 import {Portion} from './portion';
+import {Instructions} from './instructions'
 
 
 

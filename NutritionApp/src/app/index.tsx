@@ -5,6 +5,7 @@ import { Button } from "expo-router/build/react-navigation";
 import {NavBar} from './NavBar'
 import {InventoryScreen} from './inventory'
 import {HomeScreen} from './home'
+import {Instructions} from './instructions'
 
 export default function Index() {
   return (
