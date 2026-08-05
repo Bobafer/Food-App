@@ -14,8 +14,6 @@ export default function Index() {
       <NavBar>
         
       </NavBar>
-
-      {<InventoryScreen></InventoryScreen>
       {/* <HomeScreen></HomeScreen>} */}
 
     </View>
