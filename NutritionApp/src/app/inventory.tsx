@@ -17,6 +17,8 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 // --- Example data, standing in for what the camera scan will eventually produce ---
 // Once the camera/detection step is built, this initial state should instead come
 // from that result (e.g. navigation params, or a store/context updated after a scan).
+
+// This is what will appear on the screen at default
 const INITIAL_INVENTORY = [
   { id: 'eggs', name: 'Eggs', category: 'Dairy and eggs', quantity: 12, unit: 'count', lowStockAt: 3 },
   { id: 'milk', name: 'Milk', category: 'Dairy and eggs', quantity: 1, unit: 'L', lowStockAt: 0.5 },
@@ -29,9 +31,9 @@ const CATEGORY_ORDER = ['Dairy and eggs', 'Produce', 'Meat', 'Pantry', 'Other'];
 
 // --- One minimalist outline icon per category — every item in that category shares it ---
 const CATEGORY_META = {
-  'Dairy and eggs': { IconSet: MaterialCommunityIcons, icon: 'egg-outline', bg: '#FAEEDA', color: '#854F0B' },
+  'Dairy and eggs': { IconSet: MaterialCommunityIcons, icon: 'egg-outline', bg: '#E1EDF7', color: '#2E6FA3' },
   Produce: { IconSet: Ionicons, icon: 'leaf-outline', bg: '#EAF3DE', color: '#3B6D11' },
-  Meat: { IconSet: MaterialCommunityIcons, icon: 'food-drumstick-outline', bg: '#FCEBEB', color: '#A32D2D' },
+  Meat: { IconSet: MaterialCommunityIcons, icon: 'food-drumstick-outline', bg: '#FBF1D6', color: '#A67C00' },
   Pantry: { IconSet: MaterialCommunityIcons, icon: 'archive-outline', bg: '#F1EFE8', color: '#5F5E5A' },
   Other: { IconSet: Ionicons, icon: 'help-circle-outline', bg: '#F1EFE8', color: '#5F5E5A' },
 };
@@ -75,12 +77,12 @@ const FOOD_CATEGORY_MAP = {
   'baking powder': 'Pantry', 'baking soda': 'Pantry', 'chocolate chips': 'Pantry', nuts: 'Pantry',
   crackers: 'Pantry', tortillas: 'Pantry',
 };
-
+// Sees what the food's added catagory is
 function guessCategory(name) {
   const key = name.trim().toLowerCase();
   return FOOD_CATEGORY_MAP[key] || null;
 }
-
+// Sorts it and puts it in other if it can not find it
 function CategoryIcon({ category, size = 15 }) {
   const meta = CATEGORY_META[category] || CATEGORY_META.Other;
   const { IconSet, icon, color } = meta;
