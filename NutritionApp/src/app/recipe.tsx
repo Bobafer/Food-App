@@ -40,6 +40,8 @@ const styles = StyleSheet.create({
         
         justifyContent: 'flex-start',
         alignItems: 'center',
+        marginTop: 12,
+        marginBottom: 12,
     },
     image:{
         borderTopRightRadius: '24px',

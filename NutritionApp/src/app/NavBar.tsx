@@ -12,6 +12,7 @@ import breakfast from '@/assets/images/cereals.png';
 import lunch from '@/assets/images/lunch.jpg';
 import dinner from '@/assets/images/dinner.png';
 import snack from '@/assets/images/snack.png';
+import { RecipeList } from './mealplanrecipelist';
 
 
 // function SettingsScreen() {
@@ -51,10 +52,12 @@ function MealPlanScreen () {
 
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <MealPlan mealimage = {breakfast} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
-            <MealPlan mealimage = {lunch} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
-            <MealPlan mealimage = {dinner} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
-            <MealPlan mealimage = {snack} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan>
+      {/* <RecipeList /> */}
+       <MealPlan mealimage = {breakfast} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
+      <MealPlan mealimage = {lunch} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
+      <MealPlan mealimage = {dinner} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
+      <MealPlan mealimage = {snack} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan> 
+
     </View>
   );
 }

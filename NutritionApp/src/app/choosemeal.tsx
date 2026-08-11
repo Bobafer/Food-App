@@ -1,10 +1,15 @@
 import {View, Text,  StyleSheet, Button,TouchableOpacity} from 'react-native';
 import React, { useState } from 'react';
+import { RecipeList } from './mealplanrecipelist';
 
 export const ChooseMeal = () => {
+
+    const [ showRecipeList, setShowRecipeList] = useState(false);
+
     return(
     <TouchableOpacity
         style={styles.container}
+        onPress={() => setShowRecipeList(!showRecipeList)}
         activeOpacity={0.8}
         >
             <View style={styles.row}>
@@ -12,6 +17,8 @@ export const ChooseMeal = () => {
                         <Text style={styles.ButtonText}>Choose your meal</Text>
                     </View>
             </View>
+
+        {showRecipeList && <RecipeList/>}
     </TouchableOpacity>
     )
 }
