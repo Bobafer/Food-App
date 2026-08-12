@@ -158,7 +158,7 @@ export function HomeScreen(){
               {/* Closest-meal badge — driven by the real Eastern Time hour
                   above, via getClosestMeal(easternHour). */}
               <View style={styles.mealBadge}>
-                  <MaterialCommunityIcons name={closestMeal.icon === 'sunny-outline' ? 'weather-sunny' : closestMeal.icon === 'moon-outline' ? 'weather-night' : 'weather-partly-cloudy'} size={20} color="#3F6647" />
+                  <MaterialCommunityIcons name={closestMeal.icon === 'sunny-outline' ? 'weather-sunny' : closestMeal.icon === 'moon-outline' ? 'weather-sunny' : 'weather-partly-cloudy'} size={20} color="#3F6647" />
                   <Text style={styles.mealBadgeText}>{closestMeal.label}</Text>
               </View>
 

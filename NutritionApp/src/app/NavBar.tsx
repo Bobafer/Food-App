@@ -13,6 +13,7 @@ import lunch from '@/assets/images/lunch.jpg';
 import dinner from '@/assets/images/dinner.png';
 import snack from '@/assets/images/snack.png';
 import { RecipeList } from './mealplanrecipelist';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 
 // ADDED: use the real, styled Home screen instead of the placeholder stub
@@ -60,10 +61,10 @@ function MealPlanScreen () {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       {/* <RecipeList /> */}
-       <MealPlan mealimage = {breakfast} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
-      <MealPlan mealimage = {lunch} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
-      <MealPlan mealimage = {dinner} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
-      <MealPlan mealimage = {snack} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan> 
+       <MealPlan mealimage = {"weather-sunny"} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
+      <MealPlan mealimage = {"weather-night"} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
+      <MealPlan mealimage = {'weather-partly-cloudy'} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
+      <MealPlan mealimage = {'weather-partly-cloudy'} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan> 
 
     </View>
   );

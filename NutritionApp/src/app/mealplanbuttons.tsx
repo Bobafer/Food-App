@@ -1,9 +1,10 @@
 import React, {useState} from 'react';
 import { View,Text,Image,StyleSheet,TouchableOpacity, ImageSourcePropType } from "react-native"
 import { ChooseMeal } from './choosemeal';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 type MealProps = {
-    mealimage: ImageSourcePropType;
+    mealimage: "weather-sunny" | "weather-night" | 'weather-partly-cloudy' | 'weather-partly-cloudy';
     mealtxt: string;
     mealname: string;
 }
@@ -20,7 +21,8 @@ export const MealPlan = (props: MealProps) => {
             activeOpacity={0.8}
         >
             <View style={styles.row}>
-                <Image source={props.mealimage} style={styles.image} />
+                <MaterialCommunityIcons name={props.mealimage} size={50} color="#5C8A66" style={{ marginRight: 12 }} />
+                {/* <Image source={props.mealimage} style={styles.image} /> */}
                 <View style={styles.textWrapper}>
                     <Text style={styles.MealText}>{props.mealtxt}</Text>
                     <Text style={styles.MealName}>{props.mealname}</Text>
