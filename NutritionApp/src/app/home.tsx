@@ -1,9 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     SafeAreaView,
     View,
     Text,
-    Image,
     TouchableOpacity,
     ScrollView,
     StyleSheet,
@@ -11,19 +10,92 @@ import {
 } from 'react-native';
 import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
 
-const THUMBNAILS = [
-'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=200',
-  'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=200',
-  'https://www.kitchenaid.com/is/image/content/dam/business-unit/kitchenaid/en-us/marketing-content/site-assets/page-content/blog/13-pro-tips-for-refrigerator-organization-that-lasts/Flyout-Image-1-fridge-organization-230351KRP01-027_KRSC536RPS_Set_sRGB-KRSC536RPS.jpg?fmt=webp-alpha&qlt=85,0&resMode=sharp2&op_usm=1.75,0.3,2,0&scl=1&constrain=fit,1',
+// --- Meal-time logic -------------------------------------------------------
+// Each meal has a representative hour (24hr clock). To find the "closest"
+// meal for a given hour, we measure the CIRCULAR distance to each one (so
+// e.g. 2 AM correctly counts as close to breakfast, not far from it just
+// because 2 comes numerically before 8).
+const MEAL_TIMES = [
+    { label: 'Breakfast', icon: 'sunny-outline', hour: 8 },
+    { label: 'Lunch', icon: 'partly-sunny-outline', hour: 12 },
+    { label: 'Dinner', icon: 'moon-outline', hour: 18 },
 ];
 
+function getClosestMeal(hour) {
+    let closest = MEAL_TIMES[0];
+    let minDistance = Infinity;
+
+    MEAL_TIMES.forEach((meal) => {
+        const rawDiff = Math.abs(hour - meal.hour);
+        const circularDiff = Math.min(rawDiff, 24 - rawDiff); // wraps around midnight
+        if (circularDiff < minDistance) {
+            minDistance = circularDiff;
+            closest = meal;
+        }
+    });
+
+    return closest;
+}
+
+// --- Real-world Eastern Time --------------------------------------------
+// Always reads the current time in America/New_York (Northeast US), REGARDLESS
+// of what timezone the device itself is set to. Intl.DateTimeFormat handles
+// EST/EDT daylight saving automatically — no manual offset math needed.
+const EASTERN_TIME_ZONE = 'America/New_York';
+
+const hourFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TIME_ZONE,
+    hour: 'numeric',
+    hourCycle: 'h23', // forces a clean 0-23 range (avoids "24" at midnight)
+});
+
+const clockDisplayFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TIME_ZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+});
+
+function getEasternHour(date) {
+    return parseInt(hourFormatter.format(date), 10);
+}
+
+function formatEasternClock(date) {
+    return clockDisplayFormatter.format(date);
+}
+// ----------------------------------------------------------------------------
+
 export function HomeScreen(){
+    // Real, live clock — starts at the actual current moment...
+    const [now, setNow] = useState(new Date());
+
+    // ...and ticks forward every second, so the displayed time and the
+    // meal badge both stay accurate without needing a refresh.
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setNow(new Date());
+        }, 1000);
+
+        return () => clearInterval(intervalId);
+    }, []);
+
+    const easternHour = getEasternHour(now);
+    const closestMeal = getClosestMeal(easternHour);
+
     return(
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle='dark-content' />
 
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>PickToPlate</Text>
+            </View>
+
+            {/* Live clock, always showing real Eastern Time regardless of the
+                device's own timezone setting. */}
+            <View style={styles.clockRow}>
+                <Ionicons name="time-outline" size={14} color="#5C8A66" />
+                <Text style={styles.clockLabel}>Eastern Time:</Text>
+                <Text style={styles.clockValue}>{formatEasternClock(now)}</Text>
             </View>
 
             <ScrollView
@@ -44,21 +116,14 @@ export function HomeScreen(){
               <Text style={styles.cameraButtonText}>Take Photo</Text>
               </TouchableOpacity>
 
-              <View style = {styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
-                  <View style={styles.dividerLine} />
+              {/* Closest-meal badge — driven by the real Eastern Time hour
+                  above, via getClosestMeal(easternHour). */}
+              <View style={styles.mealBadge}>
+                  <MaterialCommunityIcons name={closestMeal.icon === 'sunny-outline' ? 'weather-sunny' : closestMeal.icon === 'moon-outline' ? 'weather-night' : 'weather-partly-cloudy'} size={20} color="#3F6647" />
+                  <Text style={styles.mealBadgeText}>{closestMeal.label}</Text>
               </View>
 
-              <View style = {styles.thumbRow}>
-                {THUMBNAILS.map((uri,i) => (
-                  <TouchableOpacity key={i} activeOpacity={0.8} onPress={() => {}}>
-                    <Image source={{uri}} style = {styles.thumb}/> 
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.caption}>Analyze your ingredients in seconds</Text>
+              <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
           </ScrollView>
 
             {/* The bottom tab bar used to be faked here with a static row of
@@ -86,6 +151,26 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: '#3F6647',
+  },
+  clockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    backgroundColor: '#F3F6F2',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E9E3',
+  },
+  clockLabel: {
+    fontSize: 11,
+    color: '#5F6B5F',
+    fontWeight: '600',
+  },
+  clockValue: {
+    fontSize: 12,
+    color: '#3F6647',
+    fontWeight: '700',
   },
   content: {
     width: '100%',
@@ -125,33 +210,20 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
-  dividerRow: {
+  mealBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    marginVertical: 20,
+    gap: 8,
+    marginTop: 20,
+    backgroundColor: '#EAF3EA',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 16,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#DDE3DD',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: '#9AA39C',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  thumbRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  thumb: {
-    width: 96,
-    height: 72,
-    borderRadius: 12,
-    backgroundColor: '#E5E5E5',
+  mealBadgeText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#3F6647',
   },
   caption: {
     marginTop: 50,
