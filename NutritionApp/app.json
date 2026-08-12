@@ -34,6 +34,12 @@
             "imageWidth": 76
           }
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Allow NutritionApp to access your camera to scan your fridge."
+        }
       ]
     ],
     "experiments": {

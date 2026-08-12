@@ -1,4 +1,4 @@
-import {View, Text,  StyleSheet, Button,TouchableOpacity, ScrollView} from 'react-native';
+import {View, Text,  StyleSheet, Button,TouchableOpacity} from 'react-native';
 import React, { useState } from 'react';
 import { Instructions } from './instructions';
 export const Portion = () => {
@@ -13,15 +13,13 @@ export const Portion = () => {
                 </Text>
                 <View style={styles.line}></View>
 
-                {/* ADDED: this ScrollView is the ONE scrollable area — since
-                    Instructions no longer brings its own box/scroll, whichever
-                    content is showing (macros or Instructions) scrolls inside
-                    this single box instead of creating a nested outline. */}
-                <ScrollView
-                    style={styles.contentScroll}
-                    showsVerticalScrollIndicator={false}
-                    nestedScrollEnabled
-                >
+                {/* CHANGED: this used to be its own ScrollView, but nesting it
+                    inside Recipe's outer ScrollView broke touch scrolling on
+                    native (iOS/Android) — the outer one always won the
+                    gesture. Now it's a plain View, and Recipe's outer
+                    ScrollView handles all the scrolling, including whatever
+                    is showing here. */}
+                <View style={styles.contentWrapper}>
                     {showInstructions ? (
                         <Instructions />
                     ) : (
@@ -48,7 +46,7 @@ export const Portion = () => {
                             </View>
                         </>
                     )}
-                </ScrollView>
+                </View>
 
                  <TouchableOpacity 
                     style={styles.button} 
@@ -83,10 +81,10 @@ const styles = StyleSheet.create({
         width: 250, 
         alignItems: 'flex-start'
     },
-    // ADDED: caps how tall the swappable content area can get — beyond this
-    // height it scrolls in place rather than pushing the box taller and taller.
-    contentScroll: {
-        maxHeight: 220,
+    // CHANGED: renamed from contentScroll — this is now a plain View, not a
+    // ScrollView, so no maxHeight clipping (that would just cut content off
+    // with nothing to scroll it back into view).
+    contentWrapper: {
         width: '100%',
     },
     portionTitle: {

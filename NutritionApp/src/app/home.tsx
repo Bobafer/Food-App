@@ -3,12 +3,15 @@ import {
     SafeAreaView,
     View,
     Text,
+    Image,
     TouchableOpacity,
     ScrollView,
     StyleSheet,
     StatusBar,
+    Alert,
 } from 'react-native';
 import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
 // --- Meal-time logic -------------------------------------------------------
 // Each meal has a representative hour (24hr clock). To find the "closest"
@@ -53,6 +56,7 @@ const clockDisplayFormatter = new Intl.DateTimeFormat('en-US', {
     timeZone: EASTERN_TIME_ZONE,
     hour: 'numeric',
     minute: '2-digit',
+    second: '2-digit',
     hour12: true,
 });
 
@@ -63,11 +67,14 @@ function getEasternHour(date) {
 function formatEasternClock(date) {
     return clockDisplayFormatter.format(date);
 }
-// ----------------------------------------------------------------------------
 
 export function HomeScreen(){
     // Real, live clock — starts at the actual current moment...
     const [now, setNow] = useState(new Date());
+
+    // Holds the URI of whatever photo the user just took, so we can preview
+    // it (and, later, hand it off to whatever does the fridge analysis).
+    const [capturedPhoto, setCapturedPhoto] = useState(null);
 
     // ...and ticks forward every second, so the displayed time and the
     // meal badge both stay accurate without needing a refresh.
@@ -81,6 +88,32 @@ export function HomeScreen(){
 
     const easternHour = getEasternHour(now);
     const closestMeal = getClosestMeal(easternHour);
+
+    // Requests camera permission (if not already granted), then opens the
+    // native camera. If the user takes a photo (doesn't cancel), its URI
+    // gets stored in capturedPhoto.
+    const handleTakePhoto = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+
+        if (status !== 'granted') {
+            Alert.alert(
+                'Camera permission needed',
+                'PickToPlate needs camera access to scan your fridge.'
+            );
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            setCapturedPhoto(result.assets[0].uri);
+            // TODO: this is where you'd kick off fridge-photo analysis,
+            // e.g. uploading capturedPhoto to your backend/model.
+        }
+    };
 
     return(
         <SafeAreaView style={styles.safeArea}>
@@ -107,14 +140,20 @@ export function HomeScreen(){
               <TouchableOpacity
               style={styles.cameraButton}
               activeOpacity={0.85}
-              // This is where button navigation goes
-              //  onPress={() => }
+              onPress={handleTakePhoto}
               >
               <View style={styles.cameraIconCircle}>
                   <Ionicons name="camera-outline" size = {40} color = "#5C8A66" />
               </View>
               <Text style={styles.cameraButtonText}>Take Photo</Text>
               </TouchableOpacity>
+
+              {/* Preview of the photo just taken, if any. Remove this once
+                  you're navigating straight to an analysis/results screen
+                  instead of staying on Home after a capture. */}
+              {capturedPhoto && (
+                  <Image source={{ uri: capturedPhoto }} style={styles.previewImage} />
+              )}
 
               {/* Closest-meal badge — driven by the real Eastern Time hour
                   above, via getClosestMeal(easternHour). */}
@@ -209,6 +248,14 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 17,
     fontWeight: '600',
+  },
+  previewImage: {
+    width: '100%',
+    aspectRatio: 1.6,
+    maxHeight: 260,
+    borderRadius: 16,
+    marginTop: 16,
+    backgroundColor: '#E5E5E5',
   },
   mealBadge: {
     flexDirection: 'row',
