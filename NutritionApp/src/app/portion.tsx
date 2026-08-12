@@ -1,40 +1,62 @@
-import {View, Text,  StyleSheet, Button} from 'react-native';
-import React from 'react';
+import {View, Text,  StyleSheet, Button,TouchableOpacity} from 'react-native';
+import React, { useState } from 'react';
+import { Instructions } from './instructions';
 export const Portion = () => {
+
+    const [showInstructions, setShowInstructions] = useState(false);
+
     return(
         <View style={styles.container}>
             <View style={styles.textWrapper}>
-                <Text style={styles.portionTitle}>Portion Sizes</Text>
+                <Text style={styles.portionTitle}>
+                    {showInstructions ? 'Instructions' : 'Portion Sizes'}
+                </Text>
                 <View style={styles.line}></View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionCalories}>Calories:</Text>
-                    <Text style ={styles.totalValue}>400 calories</Text>
+
+                {/* CHANGED: this used to be its own ScrollView, but nesting it
+                    inside Recipe's outer ScrollView broke touch scrolling on
+                    native (iOS/Android) — the outer one always won the
+                    gesture. Now it's a plain View, and Recipe's outer
+                    ScrollView handles all the scrolling, including whatever
+                    is showing here. */}
+                <View style={styles.contentWrapper}>
+                    {showInstructions ? (
+                        <Instructions />
+                    ) : (
+                        <>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionCalories}>Calories:</Text>
+                                <Text style ={styles.totalValue}>400 calories</Text>
+                            </View>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionProtien}>Protien:</Text>
+                                <Text style={styles.totalValue}> 10 grams</Text>
+                            </View>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionCarbs}>Carbs:</Text>
+                                <Text style={styles.totalValue}>20 grams</Text>
+                            </View>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionFats}>Fat:</Text>
+                                <Text style={styles.totalValue}>50 grams</Text>
+                            </View>
+                            <View style={styles.totalContainer}>
+                                <Text style={styles.portionEggs}>Eggs:</Text>
+                                <Text style={styles.totalValue}>1</Text>
+                            </View>
+                        </>
+                    )}
                 </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionProtien}>Protien:</Text>
-                    <Text style={styles.totalValue}> 10 grams</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionCarbs}>Carbs:</Text>
-                    <Text style={styles.totalValue}>20 grams</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionFats}>Fat:</Text>
-                    <Text style={styles.totalValue}>50 grams</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionEggs}>Eggs:</Text>
-                    <Text style={styles.totalValue}>1</Text>
-                </View>
-            </View>
-            <View>
-                <Button 
-                color = '#90EE90'
-                title='Details'
-                />
-               
-            </View>
-        
+
+                 <TouchableOpacity 
+                    style={styles.button} 
+                    onPress={() => setShowInstructions(!showInstructions)}
+                >
+                    <Text style={styles.buttonText}>
+                        {showInstructions ? 'Back' : 'Details'}
+                    </Text>
+                </TouchableOpacity> 
+            </View>    
         
         </View>
     );
@@ -43,8 +65,13 @@ export const Portion = () => {
 
 const styles = StyleSheet.create({
     container: {
-        borderRadius: "15px",
-        //boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
+        // CHANGED: this box is now the one visible outline (was borderRadius
+        // as a string "15px", switched to a plain number — more reliable
+        // across web and native — and the shadow is turned back on so this
+        // reads as ONE clear box).
+        borderRadius: 15,
+        backgroundColor: '#fff',
+        boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
         justifyContent: 'flex-start',
         alignItems: 'center',
         marginTop: 5,
@@ -53,6 +80,12 @@ const styles = StyleSheet.create({
      textWrapper: {
         width: 250, 
         alignItems: 'flex-start'
+    },
+    // CHANGED: renamed from contentScroll — this is now a plain View, not a
+    // ScrollView, so no maxHeight clipping (that would just cut content off
+    // with nothing to scroll it back into view).
+    contentWrapper: {
+        width: '100%',
     },
     portionTitle: {
         fontSize:14,
@@ -109,6 +142,21 @@ const styles = StyleSheet.create({
         width: '100%',
         backgroundColor: '#000000',
         marginVertical: 10,
+    },
+    button: {
+        backgroundColor: '#90EE90',
+        alignSelf: 'center',
+        paddingVertical: 4,         
+        borderRadius: 8,            
+        alignItems: 'center',       
+        justifyContent: 'center',  
+        marginTop: 2,              
+        marginHorizontal: 12,
+    },
+    buttonText: {
+        color: '#000',
+        fontWeight:'bold',
+        padding:4
     }
 
 })
