@@ -162,7 +162,7 @@ export function HomeScreen(){
                   <Text style={styles.mealBadgeText}>{closestMeal.label}</Text>
               </View>
 
-              <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
+              <Text style={styles.caption}>Analyze your ingredients in seconds</Text>
           </ScrollView>
 
             {/* The bottom tab bar used to be faked here with a static row of
