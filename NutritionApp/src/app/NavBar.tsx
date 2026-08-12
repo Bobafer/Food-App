@@ -15,6 +15,13 @@ import snack from '@/assets/images/snack.png';
 import { RecipeList } from './mealplanrecipelist';
 
 
+// ADDED: use the real, styled Home screen instead of the placeholder stub
+// that used to be defined below (removed to avoid a duplicate declaration).
+import { HomeScreen } from './home';
+
+// ADDED: real Recipe screen for the Recipes tab.
+import { Recipe } from './recipe';
+
 // function SettingsScreen() {
 //   React.useEffect(() => {
 //     console.log('SettingsScreen mounted');
@@ -76,19 +83,8 @@ function ProfileScreen() {
   );
 }
 
-function HomeScreen() {
-  React.useEffect(() => {
-    console.log('HomeScreen mounted');
-
-    return () => console.log('HomeScreen unmounted');
-  }, []);
-
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Home Screen</Text>
-    </View>
-  );
-}
+// REMOVED: the old placeholder `function HomeScreen() {...}` stub that used
+// to be here — it's replaced by the real import at the top of this file.
 
 function DetailsScreen() {
   const navigation = useNavigation<any>();
@@ -110,6 +106,9 @@ function DetailsScreen() {
 }
 
 const HomeStack = createNativeStackNavigator({
+  screenOptions: {
+    headerShown: false,
+  },
   screens: {
     Home: HomeScreen,
     Details: DetailsScreen,
@@ -118,7 +117,7 @@ const HomeStack = createNativeStackNavigator({
 
 const RecipesStack = createNativeStackNavigator({
   screens: {
-    Recipes: RecipesScreen,
+    Recipes: Recipe,
   },
 });
 

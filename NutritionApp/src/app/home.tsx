@@ -1,22 +1,120 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     SafeAreaView,
     View,
     Text,
     Image,
     TouchableOpacity,
+    ScrollView,
     StyleSheet,
     StatusBar,
+    Alert,
 } from 'react-native';
 import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
-const THUMBNAILS = [
-'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=200',
-  'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=200',
-  'https://www.kitchenaid.com/is/image/content/dam/business-unit/kitchenaid/en-us/marketing-content/site-assets/page-content/blog/13-pro-tips-for-refrigerator-organization-that-lasts/Flyout-Image-1-fridge-organization-230351KRP01-027_KRSC536RPS_Set_sRGB-KRSC536RPS.jpg?fmt=webp-alpha&qlt=85,0&resMode=sharp2&op_usm=1.75,0.3,2,0&scl=1&constrain=fit,1',
+// --- Meal-time logic -------------------------------------------------------
+// Each meal has a representative hour (24hr clock). To find the "closest"
+// meal for a given hour, we measure the CIRCULAR distance to each one (so
+// e.g. 2 AM correctly counts as close to breakfast, not far from it just
+// because 2 comes numerically before 8).
+const MEAL_TIMES = [
+    { label: 'Breakfast', icon: 'sunny-outline', hour: 8 },
+    { label: 'Lunch', icon: 'partly-sunny-outline', hour: 12 },
+    { label: 'Dinner', icon: 'moon-outline', hour: 18 },
 ];
 
+function getClosestMeal(hour) {
+    let closest = MEAL_TIMES[0];
+    let minDistance = Infinity;
+
+    MEAL_TIMES.forEach((meal) => {
+        const rawDiff = Math.abs(hour - meal.hour);
+        const circularDiff = Math.min(rawDiff, 24 - rawDiff); // wraps around midnight
+        if (circularDiff < minDistance) {
+            minDistance = circularDiff;
+            closest = meal;
+        }
+    });
+
+    return closest;
+}
+
+// --- Real-world Eastern Time --------------------------------------------
+// Always reads the current time in America/New_York (Northeast US), REGARDLESS
+// of what timezone the device itself is set to. Intl.DateTimeFormat handles
+// EST/EDT daylight saving automatically — no manual offset math needed.
+const EASTERN_TIME_ZONE = 'America/New_York';
+
+const hourFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TIME_ZONE,
+    hour: 'numeric',
+    hourCycle: 'h23', // forces a clean 0-23 range (avoids "24" at midnight)
+});
+
+const clockDisplayFormatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: EASTERN_TIME_ZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+});
+
+function getEasternHour(date) {
+    return parseInt(hourFormatter.format(date), 10);
+}
+
+function formatEasternClock(date) {
+    return clockDisplayFormatter.format(date);
+}
+
 export function HomeScreen(){
+    // Real, live clock — starts at the actual current moment...
+    const [now, setNow] = useState(new Date());
+
+    // Holds the URI of whatever photo the user just took, so we can preview
+    // it (and, later, hand it off to whatever does the fridge analysis).
+    const [capturedPhoto, setCapturedPhoto] = useState(null);
+
+    // ...and ticks forward every second, so the displayed time and the
+    // meal badge both stay accurate without needing a refresh.
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setNow(new Date());
+        }, 1000);
+
+        return () => clearInterval(intervalId);
+    }, []);
+
+    const easternHour = getEasternHour(now);
+    const closestMeal = getClosestMeal(easternHour);
+
+    // Requests camera permission (if not already granted), then opens the
+    // native camera. If the user takes a photo (doesn't cancel), its URI
+    // gets stored in capturedPhoto.
+    const handleTakePhoto = async () => {
+        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+
+        if (status !== 'granted') {
+            Alert.alert(
+                'Camera permission needed',
+                'PickToPlate needs camera access to scan your fridge.'
+            );
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            setCapturedPhoto(result.assets[0].uri);
+            // TODO: this is where you'd kick off fridge-photo analysis,
+            // e.g. uploading capturedPhoto to your backend/model.
+        }
+    };
+
     return(
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle='dark-content' />
@@ -25,14 +123,24 @@ export function HomeScreen(){
                 <Text style={styles.headerTitle}>PickToPlate</Text>
             </View>
 
-            <View style={styles.content}>
+            {/* Live clock, always showing real Eastern Time regardless of the
+                device's own timezone setting. */}
+            <View style={styles.clockRow}>
+                <Ionicons name="time-outline" size={14} color="#5C8A66" />
+                <Text style={styles.clockLabel}>Eastern Time:</Text>
+                <Text style={styles.clockValue}>{formatEasternClock(now)}</Text>
+            </View>
+
+            <ScrollView
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
                 <Text style={styles.title}>Snap Your Fridge</Text>
 
               <TouchableOpacity
               style={styles.cameraButton}
               activeOpacity={0.85}
-              // This is where button navigation goes
-              //  onPress={() => }
+              onPress={handleTakePhoto}
               >
               <View style={styles.cameraIconCircle}>
                   <Ionicons name="camera-outline" size = {40} color = "#5C8A66" />
@@ -40,42 +148,27 @@ export function HomeScreen(){
               <Text style={styles.cameraButtonText}>Take Photo</Text>
               </TouchableOpacity>
 
-              <View style = {styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
-                  <View style={styles.dividerLine} />
+              {/* Preview of the photo just taken, if any. Remove this once
+                  you're navigating straight to an analysis/results screen
+                  instead of staying on Home after a capture. */}
+              {capturedPhoto && (
+                  <Image source={{ uri: capturedPhoto }} style={styles.previewImage} />
+              )}
+
+              {/* Closest-meal badge — driven by the real Eastern Time hour
+                  above, via getClosestMeal(easternHour). */}
+              <View style={styles.mealBadge}>
+                  <MaterialCommunityIcons name={closestMeal.icon === 'sunny-outline' ? 'weather-sunny' : closestMeal.icon === 'moon-outline' ? 'weather-night' : 'weather-partly-cloudy'} size={20} color="#3F6647" />
+                  <Text style={styles.mealBadgeText}>{closestMeal.label}</Text>
               </View>
 
-              <View style = {styles.thumbRow}>
-                {THUMBNAILS.map((uri,i) => (
-                  <TouchableOpacity key={i} activeOpacity={0.8} onPress={() => {}}>
-                    <Image source={{uri}} style = {styles.thumb}/> 
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Text style={styles.caption}>Analyze your ingredients in seconds</Text>
+          </ScrollView>
 
-              <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
-          </View>
-                      <View style={styles.tabBarPlaceholder}>
-                <View style={styles.tabItemPlaceholder}>
-                    <Ionicons name="home" size={24} color="#5C8A66" />
-                    <Text style={[styles.tabLabelPlaceholder, styles.tabLabelActivePlaceholder]}>Home</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <MaterialCommunityIcons name="silverware-fork-knife" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Recipes</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <Feather name="calendar" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Meal Plan</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <Feather name="user" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Profile</Text>
-                </View>
-            </View>
-
-
+            {/* The bottom tab bar used to be faked here with a static row of
+                icons. It's removed now — NavBar.js renders a REAL tab bar
+                (via React Navigation) around this screen instead, so this
+                component only needs to be the "Home" tab's content. */}
 
         </SafeAreaView>
     )
@@ -98,11 +191,34 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#3F6647',
   },
+  clockRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    backgroundColor: '#F3F6F2',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E9E3',
+  },
+  clockLabel: {
+    fontSize: 11,
+    color: '#5F6B5F',
+    fontWeight: '600',
+  },
+  clockValue: {
+    fontSize: 12,
+    color: '#3F6647',
+    fontWeight: '700',
+  },
   content: {
-    flex: 1,
+    width: '100%',
+    maxWidth: 480,
+    alignSelf: 'center',
     paddingHorizontal: 24,
     alignItems: 'center',
     paddingTop: 28,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 22,
@@ -113,6 +229,7 @@ const styles = StyleSheet.create({
   cameraButton: {
     width: '100%',
     aspectRatio: 1.6,
+    maxHeight: 260,
     backgroundColor: '#6FA377',
     borderRadius: 20,
     alignItems: 'center',
@@ -132,33 +249,28 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
   },
-  dividerRow: {
+  previewImage: {
+    width: '100%',
+    aspectRatio: 1.6,
+    maxHeight: 260,
+    borderRadius: 16,
+    marginTop: 16,
+    backgroundColor: '#E5E5E5',
+  },
+  mealBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    marginVertical: 20,
+    gap: 8,
+    marginTop: 20,
+    backgroundColor: '#EAF3EA',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 16,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#DDE3DD',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: '#9AA39C',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  thumbRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  thumb: {
-    width: 96,
-    height: 72,
-    borderRadius: 12,
-    backgroundColor: '#E5E5E5',
+  mealBadgeText: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#3F6647',
   },
   caption: {
     marginTop: 50,
@@ -172,34 +284,4 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     overflow: 'hidden',
   },
-  tabBarPlaceholder: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#EDEDED',
-    paddingTop: 10,
-    paddingBottom: 18,
-    backgroundColor: '#FFFFFF',
-  },
-  tabItemPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  tabLabelPlaceholder: {
-    fontSize: 11,
-    color: '#9AA39C',
-    marginTop: 4,
-  },
-  tabLabelActivePlaceholder: {
-    color: '#5C8A66',
-    fontWeight: '600',
-  },
 });
-
-
-
-
-
-
-
-
-
