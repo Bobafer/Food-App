@@ -56,24 +56,8 @@ export function HomeScreen(){
 
               <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
           </View>
-                      <View style={styles.tabBarPlaceholder}>
-                <View style={styles.tabItemPlaceholder}>
-                    <Ionicons name="home" size={24} color="#5C8A66" />
-                    <Text style={[styles.tabLabelPlaceholder, styles.tabLabelActivePlaceholder]}>Home</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <MaterialCommunityIcons name="silverware-fork-knife" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Recipes</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <Feather name="calendar" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Meal Plan</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <Feather name="user" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Profile</Text>
-                </View>
-            </View>
+                     
+          
 
 
 

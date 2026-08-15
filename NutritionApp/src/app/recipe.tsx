@@ -5,7 +5,7 @@ import {Portion} from './portion';
 
 
 
-export const Recipe = () => {
+export const RecipeScreen = () => {
 
     const [showPortion, setShowPortion] = useState(false);
 

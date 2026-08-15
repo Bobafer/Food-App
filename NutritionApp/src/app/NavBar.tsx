@@ -7,6 +7,8 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Button } from '@react-navigation/elements';
+import { HomeScreen } from './home';
+import { RecipeScreen } from './recipe';
 
 // function SettingsScreen() {
 //   React.useEffect(() => {
@@ -22,20 +24,6 @@ import { Button } from '@react-navigation/elements';
 //   );
 // }
 
-function RecipesScreen () {
-  React.useEffect(() => {
-    console.log('RecipesScreen mounted');
-
-    return () => console.log('RecipesScreen unmounted');
-  }, []);
-
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Recipes Screen</Text>
-    </View>
-  );
-}
-
 function MealPlanScreen () {
   React.useEffect(() => {
     console.log('MealPlanScreen mounted');
@@ -50,33 +38,34 @@ function MealPlanScreen () {
   );
 }
 
-function ProfileScreen() {
+function InventoryScreen () {
   React.useEffect(() => {
-    console.log('ProfileScreen mounted');
+    console.log('InventoryScreen mounted');
 
-    return () => console.log('ProfileScreen unmounted');
+    return () => console.log('InventoryScreen unmounted');
   }, []);
 
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Profile Screen</Text>
+      <Text>Inventory Screen</Text>
     </View>
   );
 }
 
-function HomeScreen() {
+function SettingsScreen() {
   React.useEffect(() => {
-    console.log('HomeScreen mounted');
+    console.log('SettingsScreen mounted');
 
-    return () => console.log('HomeScreen unmounted');
+    return () => console.log('SettingsScreen unmounted');
   }, []);
 
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Home Screen</Text>
+      <Text>Settings Screen</Text>
     </View>
   );
 }
+
 
 function DetailsScreen() {
   const navigation = useNavigation<any>();
@@ -106,7 +95,13 @@ const HomeStack = createNativeStackNavigator({
 
 const RecipesStack = createNativeStackNavigator({
   screens: {
-    Recipes: RecipesScreen,
+    Recipes: RecipeScreen,
+  },
+});
+
+const InventoryStack = createNativeStackNavigator({
+  screens: {
+    MealPlan: InventoryScreen,
   },
 });
 
@@ -122,9 +117,9 @@ const MealPlanStack = createNativeStackNavigator({
 //   },
 // });
 
-const ProfileStack = createNativeStackNavigator({
+const SettingsStack = createNativeStackNavigator({
   screens: {
-    Profile: ProfileScreen,
+    Profile: SettingsScreen,
   },
 });
 
@@ -134,7 +129,7 @@ const MyTabs = createBottomTabNavigator({
   },
   screens: {
     HomeStack: {
-      screen: HomeStack,  //can be changed to HomeScreen if you dont want the "Home" Header
+      screen: HomeScreen,  //can be changed to HomeScreen if you dont want the "Home" Header
       options: {
         tabBarLabel: 'Home',
         tabBarIcon: ({ focused, color, size }) => (
@@ -150,7 +145,7 @@ const MyTabs = createBottomTabNavigator({
       },
     },
     RecipesStack: {
-      screen: RecipesStack,  //can be changed to SettingsScreen if you dont want the "Settings" Header
+      screen: RecipeScreen,  //can be changed to SettingsScreen if you dont want the "Settings" Header
       options: {
         tabBarLabel: 'Recipes',
         tabBarIcon: ({ focused, color, size }) => (
@@ -165,8 +160,24 @@ const MyTabs = createBottomTabNavigator({
         ),
       },
     },
+    InventoryStack: {
+      screen: InventoryScreen,  //can be changed to HomeScreen if you dont want the "Home" Header
+      options: {
+        tabBarLabel: 'Inventory',
+        tabBarIcon: ({ focused, color, size }) => (
+          <Image
+            source={
+              focused
+                ? require('../../assets/images/NavBar_Images/Inventory.png')
+                : require('../../assets/images/NavBar_Images/InventoryClicked.png')
+            }
+            style={{ width: 40, height: 40 }}
+          />
+        ),
+      },
+    },
     MealPlanStack: {
-      screen: MealPlanStack,  //can be changed to SettingsScreen if you dont want the "Settings" Header
+      screen: MealPlanScreen,  //can be changed to SettingsScreen if you dont want the "Settings" Header
       options: {
         tabBarLabel: 'Meal Plan',
         tabBarIcon: ({ focused, color, size }) => (
@@ -197,16 +208,16 @@ const MyTabs = createBottomTabNavigator({
     //     ),
     //   },
     // },
-    Profile: {
-      screen: ProfileStack,  //can be changed to ProfileScreen if you dont want the "Profile" Header
+    Settings: {
+      screen: SettingsScreen,  //can be changed to ProfileScreen if you dont want the "Profile" Header
       options: {
-        tabBarLabel: 'Profile',
+        tabBarLabel: 'Settings',
         tabBarIcon: ({ focused, color, size }) => (
           <Image
             source={
               focused
-                ? require('../../assets/images/NavBar_Images/Profile.png')
-                : require('../../assets/images/NavBar_Images/ProfileClicked.png')
+                ? require('../../assets/images/NavBar_Images/Settings.png')
+                : require('../../assets/images/NavBar_Images/SettingsClicked.png')
             }
             style={{ width: 40, height: 40 }}
           />
