@@ -87,6 +87,9 @@ function DetailsScreen() {
 }
 
 const HomeStack = createNativeStackNavigator({
+  screenOptions: {
+    headerShown: false,
+  },
   screens: {
     Home: HomeScreen,
     Details: DetailsScreen,
