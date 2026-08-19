@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   SafeAreaView,
   View,
@@ -11,8 +11,17 @@ import {
   KeyboardAvoidingView,
   Platform,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// --- Persistence -------------------------------------------------------
+// The key AsyncStorage will file this under. Prefixing with the app name
+// avoids collisions with any other data your app (or a library) might also
+// store under a plain key like "inventory".
+const INVENTORY_STORAGE_KEY = '@PickToPlate:inventory';
+// -------------------------------------------------------------------------
 
 // --- Example data, standing in for what the camera scan will eventually produce ---
 // Once the camera/detection step is built, this initial state should instead come
@@ -91,6 +100,11 @@ function CategoryIcon({ category, size = 15 }) {
 
 export function InventoryScreen() {
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
+
+  // Tracks whether we've finished attempting to read saved data from
+  // AsyncStorage yet. This matters a lot — see the two useEffects below for why.
+  const [isInventoryLoaded, setIsInventoryLoaded] = useState(false);
+
   const [activityLog, setActivityLog] = useState([
     'Used 3 eggs and 1 spinach for Spinach and Chicken Salad',
     'Used 2 bell peppers for Frittata',
@@ -101,6 +115,54 @@ export function InventoryScreen() {
   const [newQuantity, setNewQuantity] = useState('1');
   const [newUnit, setNewUnit] = useState('count');
   const [newCategory, setNewCategory] = useState('Produce');
+
+  // --- LOAD: runs once, when the screen first mounts ------------------------
+  // AsyncStorage only stores strings, so whatever we saved was JSON.stringify'd
+  // — meaning we have to JSON.parse it back into a real array here.
+  useEffect(() => {
+    const loadInventory = async () => {
+      try {
+        const storedValue = await AsyncStorage.getItem(INVENTORY_STORAGE_KEY);
+        if (storedValue !== null) {
+          setInventory(JSON.parse(storedValue));
+        }
+        // If storedValue is null, nothing has ever been saved (e.g. first
+        // launch) — we just leave `inventory` as INITIAL_INVENTORY.
+      } catch (error) {
+        console.warn('Failed to load saved inventory:', error);
+        // On failure we also just keep INITIAL_INVENTORY — better to show
+        // something than crash or show a blank screen.
+      } finally {
+        // Whether it succeeded, failed, or found nothing, loading is DONE.
+        setIsInventoryLoaded(true);
+      }
+    };
+
+    loadInventory();
+  }, []); // empty dependency array = runs exactly once, on mount
+
+  // --- SAVE: runs every time `inventory` changes -----------------------------
+  useEffect(() => {
+    // Guard: don't save until the initial load above has finished. Without
+    // this check, here's the bug that would happen: the screen mounts,
+    // `inventory` starts as INITIAL_INVENTORY, and THIS effect fires
+    // immediately (because inventory "changed" from nothing to the initial
+    // value) — writing the default sample data to storage and permanently
+    // wiping out whatever the user had actually saved, a split second
+    // before the load effect above even gets a chance to read it back.
+    if (!isInventoryLoaded) return;
+
+    const saveInventory = async () => {
+      try {
+        await AsyncStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(inventory));
+      } catch (error) {
+        console.warn('Failed to save inventory:', error);
+      }
+    };
+
+    saveInventory();
+  }, [inventory, isInventoryLoaded]);
+  // ---------------------------------------------------------------------------
 
   // Manual +/- stepper, for correcting a miscount from the scan
   const adjustQuantity = (id, delta) => {
@@ -195,6 +257,22 @@ export function InventoryScreen() {
     category,
     items: inventory.filter((item) => item.category === category),
   })).filter((group) => group.items.length > 0);
+
+  // While we're still reading from AsyncStorage, show a simple loading
+  // spinner instead of the real screen. This prevents a "flash" where you'd
+  // otherwise briefly see INITIAL_INVENTORY's sample data for a split
+  // second before it gets swapped out for your real saved data.
+  if (!isInventoryLoaded) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6FA377" />
+          <Text style={styles.loadingText}>Loading your inventory...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -401,6 +479,16 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  loadingText: {
+    fontSize: 13,
+    color: '#5F6B5F',
   },
   header: {
     backgroundColor: '#EAF3EA',
