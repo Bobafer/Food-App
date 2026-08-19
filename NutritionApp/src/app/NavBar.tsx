@@ -9,6 +9,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Button } from '@react-navigation/elements';
 import { HomeScreen } from './home';
 import { RecipeScreen } from './recipe';
+import { InventoryScreen } from './inventory';
 
 // function SettingsScreen() {
 //   React.useEffect(() => {
@@ -38,19 +39,6 @@ function MealPlanScreen () {
   );
 }
 
-function InventoryScreen () {
-  React.useEffect(() => {
-    console.log('InventoryScreen mounted');
-
-    return () => console.log('InventoryScreen unmounted');
-  }, []);
-
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Inventory Screen</Text>
-    </View>
-  );
-}
 
 function SettingsScreen() {
   React.useEffect(() => {

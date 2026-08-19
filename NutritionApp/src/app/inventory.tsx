@@ -89,7 +89,7 @@ function CategoryIcon({ category, size = 15 }) {
   return <IconSet name={icon} size={size} color={color} />;
 }
 
-export function InventoryScreen({ navigation }) {
+export function InventoryScreen() {
   const [inventory, setInventory] = useState(INITIAL_INVENTORY);
   const [activityLog, setActivityLog] = useState([
     'Used 3 eggs and 1 spinach for Spinach and Chicken Salad',

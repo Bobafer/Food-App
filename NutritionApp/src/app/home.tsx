@@ -24,7 +24,7 @@ const MEAL_TIMES = [
     { label: 'Dinner', icon: 'moon-outline', hour: 18 },
 ];
 
-function getClosestMeal(hour) {
+function getClosestMeal(hour: number) {
     let closest = MEAL_TIMES[0];
     let minDistance = Infinity;
 
@@ -60,11 +60,11 @@ const clockDisplayFormatter = new Intl.DateTimeFormat('en-US', {
     hour12: true,
 });
 
-function getEasternHour(date) {
+function getEasternHour(date: Date) {
     return parseInt(hourFormatter.format(date), 10);
 }
 
-function formatEasternClock(date) {
+function formatEasternClock(date: Date) {
     return clockDisplayFormatter.format(date);
 }
 
