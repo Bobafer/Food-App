@@ -16,8 +16,9 @@ export default function Index() {
           even on a wide laptop browser. NavBar renders inside it, so this
           constrains the header, content, AND the bottom tab bar together. */}
       <View style={styles.phoneFrame}>
-        {/* <Recipe></Recipe> */}
-        <NavBar></NavBar>
+        {/* <Recipe></Recipe>
+        <NavBar></NavBar> */}
+        <InventoryScreen></InventoryScreen>
       </View>
     </View>
   );

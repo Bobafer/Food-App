@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     SafeAreaView,
     View,
@@ -9,6 +9,7 @@ import {
     StyleSheet,
     StatusBar,
     Alert,
+    Modal,
 } from 'react-native';
 import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -40,37 +41,47 @@ function getClosestMeal(hour) {
     return closest;
 }
 
-// --- Real-world Eastern Time --------------------------------------------
-// Always reads the current time in America/New_York (Northeast US), REGARDLESS
-// of what timezone the device itself is set to. Intl.DateTimeFormat handles
-// EST/EDT daylight saving automatically — no manual offset math needed.
-const EASTERN_TIME_ZONE = 'America/New_York';
+// --- Real-world time, selectable timezone -----------------------------------
+// Every entry uses an IANA timezone id — Intl.DateTimeFormat reads the real
+// current time AS IF you were standing in that zone, and automatically
+// handles daylight saving, regardless of what timezone the device itself is
+// set to.
+const TIME_ZONES = [
+    { label: 'Eastern Time', zone: 'America/New_York' },
+    { label: 'Central Time', zone: 'America/Chicago' },
+    { label: 'Mountain Time', zone: 'America/Denver' },
+    { label: 'Pacific Time', zone: 'America/Los_Angeles' },
+    { label: 'Alaska Time', zone: 'America/Anchorage' },
+    { label: 'Hawaii Time', zone: 'Pacific/Honolulu' },
+];
 
-const hourFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: EASTERN_TIME_ZONE,
-    hour: 'numeric',
-    hourCycle: 'h23', // forces a clean 0-23 range (avoids "24" at midnight)
-});
-
-const clockDisplayFormatter = new Intl.DateTimeFormat('en-US', {
-    timeZone: EASTERN_TIME_ZONE,
-    hour: 'numeric',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: true,
-});
-
-function getEasternHour(date) {
-    return parseInt(hourFormatter.format(date), 10);
+function makeHourFormatter(zone) {
+    return new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: 'numeric',
+        hourCycle: 'h23', // forces a clean 0-23 range (avoids "24" at midnight)
+    });
 }
 
-function formatEasternClock(date) {
-    return clockDisplayFormatter.format(date);
+function makeClockDisplayFormatter(zone) {
+    return new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    });
 }
+// ----------------------------------------------------------------------------
 
 export function HomeScreen(){
     // Real, live clock — starts at the actual current moment...
     const [now, setNow] = useState(new Date());
+
+    // Which timezone's clock/meal-detection we're currently showing.
+    // Defaults to Eastern (Northeast US), matching the original behavior.
+    const [selectedZoneIndex, setSelectedZoneIndex] = useState(0);
+    const [zonePickerVisible, setZonePickerVisible] = useState(false);
+    const selectedZone = TIME_ZONES[selectedZoneIndex];
 
     // Holds the URI of whatever photo the user just took, so we can preview
     // it (and, later, hand it off to whatever does the fridge analysis).
@@ -86,8 +97,13 @@ export function HomeScreen(){
         return () => clearInterval(intervalId);
     }, []);
 
-    const easternHour = getEasternHour(now);
-    const closestMeal = getClosestMeal(easternHour);
+    // Rebuild the formatters only when the selected zone actually changes,
+    // rather than on every tick of the clock.
+    const hourFormatter = useMemo(() => makeHourFormatter(selectedZone.zone), [selectedZone.zone]);
+    const clockDisplayFormatter = useMemo(() => makeClockDisplayFormatter(selectedZone.zone), [selectedZone.zone]);
+
+    const currentHour = parseInt(hourFormatter.format(now), 10);
+    const closestMeal = getClosestMeal(currentHour);
 
     // Requests camera permission (if not already granted), then opens the
     // native camera. If the user takes a photo (doesn't cancel), its URI
@@ -123,13 +139,59 @@ export function HomeScreen(){
                 <Text style={styles.headerTitle}>PickToPlate</Text>
             </View>
 
-            {/* Live clock, always showing real Eastern Time regardless of the
-                device's own timezone setting. */}
+            {/* Live clock — shows the currently selected timezone. Tap the
+                triangle to pick a different one. */}
             <View style={styles.clockRow}>
                 <Ionicons name="time-outline" size={14} color="#5C8A66" />
-                <Text style={styles.clockLabel}>Eastern Time:</Text>
-                <Text style={styles.clockValue}>{formatEasternClock(now)}</Text>
+                <Text style={styles.clockLabel}>{selectedZone.label}:</Text>
+                <Text style={styles.clockValue}>{clockDisplayFormatter.format(now)}</Text>
+
+                <TouchableOpacity
+                    onPress={() => setZonePickerVisible(true)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    style={styles.zoneDropdownButton}
+                >
+                    <Ionicons name="caret-down" size={12} color="#5C8A66" />
+                </TouchableOpacity>
             </View>
+
+            {/* Timezone picker — a simple dropdown list. Tapping a zone (or
+                the backdrop) closes it. */}
+            <Modal
+                visible={zonePickerVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setZonePickerVisible(false)}
+            >
+                <TouchableOpacity
+                    style={styles.zoneModalBackdrop}
+                    activeOpacity={1}
+                    onPress={() => setZonePickerVisible(false)}
+                >
+                    <View style={styles.zoneDropdownCard}>
+                        {TIME_ZONES.map((zone, index) => {
+                            const isSelected = index === selectedZoneIndex;
+                            return (
+                                <TouchableOpacity
+                                    key={zone.zone}
+                                    style={styles.zoneOptionRow}
+                                    onPress={() => {
+                                        setSelectedZoneIndex(index);
+                                        setZonePickerVisible(false);
+                                    }}
+                                >
+                                    <Text style={[styles.zoneOptionText, isSelected && styles.zoneOptionTextSelected]}>
+                                        {zone.label}
+                                    </Text>
+                                    {isSelected && (
+                                        <Ionicons name="checkmark" size={16} color="#3F6647" />
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </TouchableOpacity>
+            </Modal>
 
             <ScrollView
                 contentContainerStyle={styles.content}
@@ -162,7 +224,7 @@ export function HomeScreen(){
                   <Text style={styles.mealBadgeText}>{closestMeal.label}</Text>
               </View>
 
-              <Text style={styles.caption}>Analyze your ingredients in seconds</Text>
+              <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
           </ScrollView>
 
             {/* The bottom tab bar used to be faked here with a static row of
@@ -210,6 +272,38 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#3F6647',
     fontWeight: '700',
+  },
+  zoneDropdownButton: {
+    marginLeft: 2,
+    padding: 2,
+  },
+  zoneModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(20, 30, 20, 0.25)',
+    alignItems: 'center',
+    paddingTop: 90,
+  },
+  zoneDropdownCard: {
+    width: 220,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    paddingVertical: 6,
+    boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.15)',
+  },
+  zoneOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 11,
+    paddingHorizontal: 16,
+  },
+  zoneOptionText: {
+    fontSize: 14,
+    color: '#22331F',
+  },
+  zoneOptionTextSelected: {
+    fontWeight: '700',
+    color: '#3F6647',
   },
   content: {
     width: '100%',
