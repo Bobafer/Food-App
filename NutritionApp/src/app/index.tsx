@@ -18,6 +18,7 @@ export default function Index() {
       <View style={styles.phoneFrame}>
         {/* <Recipe></Recipe>
         <NavBar></NavBar> */}
+        <InventoryScreen></InventoryScreen>
       </View>
     </View>
   );
