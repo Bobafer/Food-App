@@ -279,11 +279,8 @@ export function InventoryScreen() {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation?.goBack?.()} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-          <Ionicons name="chevron-back" size={22} color="#3F6647" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Inventory</Text>
-        <View style={{ width: 22 }} />
+        <Text style={[styles.headerTitle]}>Inventory</Text>
+        <View style={{ width: 22}} />
       </View>
 
       <KeyboardAvoidingView
@@ -497,6 +494,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    textAlign: 'center',
   },
   headerTitle: {
     fontSize: 16,

@@ -10,6 +10,7 @@ import { Button } from '@react-navigation/elements';
 import { HomeScreen } from './home';
 import { RecipeScreen } from './recipe';
 import { InventoryScreen } from './inventory';
+import SettingsScreen from './Settings';
 
 // function SettingsScreen() {
 //   React.useEffect(() => {
@@ -35,21 +36,6 @@ function MealPlanScreen () {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       <Text>Meal Plan Screen</Text>
-    </View>
-  );
-}
-
-
-function SettingsScreen() {
-  React.useEffect(() => {
-    console.log('SettingsScreen mounted');
-
-    return () => console.log('SettingsScreen unmounted');
-  }, []);
-
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>Settings Screen</Text>
     </View>
   );
 }
@@ -127,10 +113,10 @@ const MyTabs = createBottomTabNavigator({
           <Image
             source={
               focused
-                ? require('../../assets/images/NavBar_Images/Home.png')
-                : require('../../assets/images/NavBar_Images/HomeClicked.png')
+                ? require('../../assets/images/NavBar_Images/HomeClicked.png')
+                : require('../../assets/images/NavBar_Images/Home.png')
             }
-            style={{ width: 40, height: 40 }}
+            style={{ width: 20, height: 20 }}
           />
         ),
       },
@@ -143,10 +129,10 @@ const MyTabs = createBottomTabNavigator({
           <Image
             source={
               focused
-                ? require('../../assets/images/NavBar_Images/Recipes.png')
-                : require('../../assets/images/NavBar_Images/RecipesClicked.png')
+                ? require('../../assets/images/NavBar_Images/RecipesClicked.png')
+                : require('../../assets/images/NavBar_Images/Recipes.png')
             }
-            style={{ width: 40, height: 40 }}
+            style={{ width: 20, height: 20 }}
           />
         ),
       },
@@ -159,10 +145,10 @@ const MyTabs = createBottomTabNavigator({
           <Image
             source={
               focused
-                ? require('../../assets/images/NavBar_Images/Inventory.png')
-                : require('../../assets/images/NavBar_Images/InventoryClicked.png')
+                ? require('../../assets/images/NavBar_Images/InventoryClicked.png')
+                : require('../../assets/images/NavBar_Images/Inventory.png')
             }
-            style={{ width: 40, height: 40 }}
+            style={{ width: 20, height: 20 }}
           />
         ),
       },
@@ -175,10 +161,10 @@ const MyTabs = createBottomTabNavigator({
           <Image
             source={
               focused
-                ? require('../../assets/images/NavBar_Images/MealPlan.png')
-                : require('../../assets/images/NavBar_Images/MealPlanClicked.png')
+                ? require('../../assets/images/NavBar_Images/MealPlanClicked.png')
+                : require('../../assets/images/NavBar_Images/MealPlan.png')
             }
-            style={{ width: 40, height: 40 }}
+            style={{ width: 20, height: 20 }}
           />
         ),
       },
@@ -199,7 +185,7 @@ const MyTabs = createBottomTabNavigator({
     //     ),
     //   },
     // },
-    Settings: {
+    SettingsStack: {
       screen: SettingsScreen,  //can be changed to ProfileScreen if you dont want the "Profile" Header
       options: {
         tabBarLabel: 'Settings',
@@ -207,10 +193,10 @@ const MyTabs = createBottomTabNavigator({
           <Image
             source={
               focused
-                ? require('../../assets/images/NavBar_Images/Settings.png')
-                : require('../../assets/images/NavBar_Images/SettingsClicked.png')
+                ? require('../../assets/images/NavBar_Images/SettingsClicked.png')
+                : require('../../assets/images/NavBar_Images/Settings.png')
             }
-            style={{ width: 40, height: 40 }}
+            style={{ width: 20, height: 20 }}
           />
         ),
       },

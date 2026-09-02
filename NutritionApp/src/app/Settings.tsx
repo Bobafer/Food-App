@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import {Alert, ScrollView, Pressable, StyleSheet, Text, View, Image, TextInput,} from "react-native";
+import {Alert, ScrollView, Pressable, StyleSheet, Text, View, Image, TextInput, SafeAreaView,} from "react-native";
 import {GoogleGenAI} from "@google/genai";
 import { Asset } from "expo-asset";
 import {File} from "expo-file-system";
@@ -115,7 +115,7 @@ const macroAmounts = [
   "High",
 ];
 
-const SaveButton = () => {
+const SettingsScreen = () => {
   const [selectedAllergies, setSelectedAllergies] = useState<string[]>([]);
   const [selectedDiet, setSelectedDiet] = useState<string | null>(null);
   const [selectedMacros1, setSelectedMacros1] = useState<string | null>(null);
@@ -156,10 +156,19 @@ const SaveButton = () => {
   };
 
   return (
+   <SafeAreaView style={styles.safeArea}> 
+   <View style={styles.header}>
+              <Text style={[styles.headerTitle]}>Settings</Text>
+              <View style={{ width: 22 }} />
+            </View>
+
     <ScrollView
       contentContainerStyle={styles.container}
       showsVerticalScrollIndicator={false}
+
+      
     >
+
       <Text style={styles.heading}>Allergies & Intolerances</Text>
       <Text style={styles.description}>Select all that apply</Text>
       <View style={styles.pillContainer}>
@@ -189,6 +198,7 @@ const SaveButton = () => {
         ))}
       </View>
 
+      
       <Text style={styles.heading}>Dietary Restrictions</Text>
       <Text style={styles.description}>Select one</Text>
       <View style={styles.segmentContainer}>
@@ -407,12 +417,32 @@ const SaveButton = () => {
         </Pressable>
       </View>
     </ScrollView>
+  </SafeAreaView> 
     );
   };
 
 const styles = StyleSheet.create({
   container: {
     padding: 20,
+  },
+
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  header: {
+    backgroundColor: '#EAF3EA',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    textAlign: 'center',
+  },
+  headerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#3F6647',
   },
 
   icon: {
@@ -546,4 +576,4 @@ saveButtonText: {
 
 });
 
-export default SaveButton
+export default SettingsScreen;
