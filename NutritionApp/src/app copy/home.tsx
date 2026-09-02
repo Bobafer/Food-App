@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
 import pizza from '@/assets/Recipe_Images/pizza.jpg';
+import { Recipe } from './recipe';
 
 // --- Recommended recipe -----------------------------------------------------
 // Hardcoded for now (matches the one recipe that currently exists in the
@@ -101,15 +101,13 @@ export function HomeScreen(){
     // it (and, later, hand it off to whatever does the fridge analysis).
     const [capturedPhoto, setCapturedPhoto] = useState(null);
 
-    // FIXED: navigation.navigate() was coming back undefined because
-    // useNavigation() was being imported from 'expo-router' elsewhere in
-    // the app. HomeScreen isn't actually mounted inside Expo Router's own
-    // navigation tree — NavBar.tsx builds a separate, independent
-    // @react-navigation/native tree (see the `independent` comment there),
-    // and Home lives inside THAT one. Importing useNavigation from
-    // '@react-navigation/native' (same library NavBar.tsx itself uses)
-    // gives us the right navigation object.
-    const navigation = useNavigation<any>();
+    // WORKAROUND: while navigation.navigate() is broken (navigation keeps
+    // coming back undefined — see our debugging), this just swaps the
+    // recipe in directly using local state, no navigation library involved.
+    // Trade-off: the bottom tab bar won't highlight "Recipes" while this is
+    // showing, since we're not actually switching tabs. Once the real
+    // navigation bug is fixed, this can go back to navigation.navigate(...).
+    const [showRecipePage, setShowRecipePage] = useState(false);
 
     // ...and ticks forward every second, so the displayed time and the
     // meal badge both stay accurate without needing a refresh.
@@ -155,17 +153,33 @@ export function HomeScreen(){
         }
     };
 
-    // Real navigation: jump to the Recipes tab and open its "Recipes" screen
-    // with a param telling Recipe to auto-expand straight to Instructions.
-    // "RecipesStack" isn't a screen inside HomeStack, so this action bubbles
-    // up to the parent tab navigator (MyTabs), which switches tabs for us —
-    // that's also why the tab bar now correctly highlights "Recipes".
+    // Switches to showing the Recipe component in place, via local state.
     const handleOpenRecommendedRecipe = () => {
-        navigation.navigate('RecipesStack', {
-            screen: 'Recipes',
-            params: { autoOpenInstructions: true },
-        });
+        setShowRecipePage(true);
     };
+
+    // While showRecipePage is true, render Recipe instead of the normal
+    // Home content — with a simple back button (also just local state, no
+    // navigation library) to return to Home.
+    if (showRecipePage) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <StatusBar barStyle="dark-content" />
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        onPress={() => setShowRecipePage(false)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={styles.recipeBackButton}
+                    >
+                        <Ionicons name="chevron-back" size={22} color="#3F6647" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Recipe</Text>
+                    <View style={{ width: 22 }} />
+                </View>
+                <Recipe autoOpenInstructions />
+            </SafeAreaView>
+        );
+    }
 
     return(
         <SafeAreaView style={styles.safeArea}>

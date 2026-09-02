@@ -6,17 +6,13 @@ import {Instructions} from './instructions'
 
 
 
-// ADDED: autoOpenInstructions — when true, the Portion section (and
+// ADDED: autoOpenInstructions prop — when true, the Portion section (and
 // Instructions inside it) start already expanded, instead of requiring a tap.
-// Home's "Recommended Recipe" card triggers this by navigating here with
-// navigation.navigate('RecipesStack', { screen: 'Recipes', params: { autoOpenInstructions: true } }),
-// so React Navigation hands it to us as route.params. The plain
-// `autoOpenInstructions` prop is kept too, so <Recipe autoOpenInstructions />
-// still works if this is ever rendered directly instead of as a screen.
-export const Recipe = ({ autoOpenInstructions = false, route }) => {
+// Only passed as true from Home's "Recommended Recipe" card; the normal
+// Recipes tab renders <Recipe /> with no prop, so it stays closed by default.
+export const Recipe = ({ autoOpenInstructions = false }) => {
 
-    const shouldAutoOpen = route?.params?.autoOpenInstructions ?? autoOpenInstructions;
-    const [showPortion, setShowPortion] = useState(shouldAutoOpen);
+    const [showPortion, setShowPortion] = useState(autoOpenInstructions);
 
     return(
         // ADDED: SafeAreaView + ScrollView wrapper so this fits the screen
@@ -42,7 +38,7 @@ export const Recipe = ({ autoOpenInstructions = false, route }) => {
                     </View>
                 </View>
 
-                {showPortion && <Portion autoOpenInstructions={shouldAutoOpen} />}
+                {showPortion && <Portion autoOpenInstructions={autoOpenInstructions} />}
             </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
