@@ -10,6 +10,7 @@ export const RecipeList = () => {
         <ScrollView style={styles.recipewindow}
         showsVerticalScrollIndicator={false}>
             <Text style={styles.recipetext}>Recipes</Text>
+            
             {<Recipe />}
             {<Recipe />}
             {<Recipe />}

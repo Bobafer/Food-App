@@ -2,6 +2,7 @@ import React, {useState} from 'react';
 import { View,Text,Image,StyleSheet,TouchableOpacity, ImageSourcePropType } from "react-native"
 import { ChooseMeal } from './choosemeal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import {Calendar, LocaleConfig} from 'react-native-calendars';
 
 type MealProps = {
     mealimage: "weather-sunny" | "weather-night" | 'weather-partly-cloudy' | 'weather-partly-cloudy';
@@ -12,14 +13,18 @@ type MealProps = {
 export const MealPlan = (props: MealProps) => {
 
     const [showChooseMeal, setShowChooseMeal] = useState(false);
-
+    const [selected, setSelected] = useState(false);
 
     return(
+        <View>
+
+
         <TouchableOpacity
             style={styles.container}
             onPress={() => setShowChooseMeal(!showChooseMeal)}
             activeOpacity={0.8}
         >
+
             <View style={styles.row}>
                 <MaterialCommunityIcons name={props.mealimage} size={50} color="#5C8A66" style={{ marginRight: 12 }} />
                 {/* <Image source={props.mealimage} style={styles.image} /> */}
@@ -32,7 +37,14 @@ export const MealPlan = (props: MealProps) => {
             {showChooseMeal && <ChooseMeal/>}
             {/* {showChooseMeal ? <ChooseMeal></ChooseMeal> : null} */}
         </TouchableOpacity>
+
+
+        
+
+
+        </View>
     )
+
 }
 
 const styles = StyleSheet.create({

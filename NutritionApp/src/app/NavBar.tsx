@@ -1,20 +1,29 @@
-import * as React from 'react';
-import { Text, View, Image } from 'react-native';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+
+
+import { Button } from '@react-navigation/elements';
 import {
   createStaticNavigation,
   useNavigation,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Button } from '@react-navigation/elements';
+import * as React from 'react';
+import { useState } from 'react';
+import { Image, Text, View } from 'react-native';
+import { CalendarProvider, WeekCalendar } from 'react-native-calendars';
 import { MealPlan } from './mealplanbuttons';
-import breakfast from '@/assets/images/cereals.png';
-import lunch from '@/assets/images/lunch.jpg';
-import dinner from '@/assets/images/dinner.png';
-import snack from '@/assets/images/snack.png';
-import { RecipeList } from './mealplanrecipelist';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+
+
+
+// https://github.com/wix/react-native-calendars/blob/master/example/src/screens/expandableCalendarScreen.tsx
+// https://wix.github.io/react-native-calendars/docs/Components/ExpandableCalendar
+
+
+// import breakfast from '@/assets/images/cereals.png';
+// import lunch from '@/assets/images/lunch.jpg';
+// import dinner from '@/assets/images/dinner.png';
+// import snack from '@/assets/images/snack.png';
 
 // ADDED: use the real, styled Home screen instead of the placeholder stub
 // that used to be defined below (removed to avoid a duplicate declaration).
@@ -37,6 +46,10 @@ import { Recipe } from './recipe';
 //   );
 // }
 
+  const todayBtnTheme = ({
+    todayButtonTextColor: "#00AAAF"
+  });
+
 function RecipesScreen () {
   React.useEffect(() => {
     console.log('RecipesScreen mounted');
@@ -55,18 +68,69 @@ function MealPlanScreen () {
   React.useEffect(() => {
     console.log('MealPlanScreen mounted');
 
+
     return () => console.log('MealPlanScreen unmounted');
   }, []);
 
+      const [selected, setSelected] = useState(false);
+  
+
   return (
+    <>
+    <CalendarProvider
+        date= {new Date().toISOString().split('T')[0]}
+
+        showTodayButton
+        theme={todayBtnTheme}
+      
+      
+      >
+        <WeekCalendar testID={'weekcalendar'} firstDay={1} markedDates={{
+        [selected]: {selected: true, disableTouchEvent: true, selectedDotColor: 'orange'}
+      }}>
+
+        </WeekCalendar>
+
+
+
+      </CalendarProvider>
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
       {/* <RecipeList /> */}
-       <MealPlan mealimage = {"weather-sunny"} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
-      <MealPlan mealimage = {"weather-night"} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
-      <MealPlan mealimage = {'weather-partly-cloudy'} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
-      <MealPlan mealimage = {'weather-partly-cloudy'} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan> 
 
-    </View>
+ {/* <Calendar
+  
+      onDayPress={day => {
+        setSelected(day.dateString);
+      }}
+      markedDates={{
+        [selected]: {selected: true, disableTouchEvent: true, selectedDotColor: 'orange'}
+      }}
+
+      showTodayButton
+
+
+      
+      theme={{
+        backgroundColor: '#ffffff',
+        calendarBackground: '#ffffff',
+        textSectionTitleColor: '#b6c1cd',
+        selectedDayBackgroundColor: '#60f89a',
+        selectedDayTextColor: '#ffffff',
+        todayTextColor: '#60f89a',
+        dayTextColor: '#2d4150',
+        textDisabledColor: '#000000'
+      }}
+
+    /> */}
+     
+
+
+       <MealPlan mealimage = {"weather-sunny"} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
+      <MealPlan mealimage = {"weather-partly-cloudy"} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
+      <MealPlan mealimage = {'weather-night'} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
+      <MealPlan mealimage = {'weather-cloudy'} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan> 
+
+    </View></>
   );
 }
 
