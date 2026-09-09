@@ -85,7 +85,14 @@ function MealPlanScreen () {
       
       
       >
-        <WeekCalendar testID={'weekcalendar'} firstDay={1} markedDates={{
+        {/* CHANGED: calendarWidth pins this to a phone-like width (matching
+            phoneFrame's maxWidth in index.tsx) instead of letting the library
+            measure the full browser window width — which is what was
+            spreading the day cells out on a wide laptop screen. On an actual
+            phone this wasn't really noticeable, since the window width there
+            is already phone-sized, but pinning it explicitly keeps it
+            correct in both places instead of depending on screen width. */}
+        <WeekCalendar testID={'weekcalendar'} firstDay={1} calendarWidth={430} markedDates={{
         [selected]: {selected: true, disableTouchEvent: true, selectedDotColor: 'orange'}
       }}>
 
