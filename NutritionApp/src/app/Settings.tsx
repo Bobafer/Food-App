@@ -158,9 +158,10 @@ const SettingsScreen = () => {
   return (
    <SafeAreaView style={styles.safeArea}> 
    <View style={styles.header}>
-              <Text style={[styles.headerTitle]}>Settings</Text>
-              <View style={{ width: 22 }} />
-            </View>
+  <View style={{ width: 22 }} />
+  <Text style={styles.headerTitle}>Settings</Text>
+  <View style={{ width: 22 }} />
+</View>
 
     <ScrollView
       contentContainerStyle={styles.container}
@@ -431,19 +432,22 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   header: {
-    backgroundColor: '#EAF3EA',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    textAlign: 'center',
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3F6647',
-  },
+  backgroundColor: '#EAF3EA',
+  paddingVertical: 16,
+  paddingHorizontal: 16,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+},
+headerTitle: {
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  textAlign: 'center',
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#3F6647',
+},
 
   icon: {
     width: 32,

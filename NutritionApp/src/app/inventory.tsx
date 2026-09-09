@@ -279,9 +279,10 @@ export function InventoryScreen() {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
-        <Text style={[styles.headerTitle]}>Inventory</Text>
-        <View style={{ width: 22}} />
-      </View>
+  <View style={{ width: 22 }} />
+  <Text style={styles.headerTitle}>Inventory</Text>
+  <View style={{ width: 22 }} />
+</View>
 
       <KeyboardAvoidingView
         style={{ flex: 1 }}
@@ -488,19 +489,22 @@ const styles = StyleSheet.create({
     color: '#5F6B5F',
   },
   header: {
-    backgroundColor: '#EAF3EA',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    textAlign: 'center',
-  },
-  headerTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#3F6647',
-  },
+  backgroundColor: '#EAF3EA',
+  paddingVertical: 16,
+  paddingHorizontal: 16,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+},
+headerTitle: {
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  textAlign: 'center',
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#3F6647',
+},
   content: {
     padding: 16,
     paddingBottom: 40,
