@@ -9,8 +9,8 @@ import {
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import * as React from 'react';
 import { useState } from 'react';
-import { Image, Text, View } from 'react-native';
-import { CalendarProvider, WeekCalendar } from 'react-native-calendars';
+import { Image, PanResponder, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { MealPlan } from './mealplanbuttons';
 
 
@@ -46,10 +46,6 @@ import { Recipe } from './recipe';
 //   );
 // }
 
-  const todayBtnTheme = ({
-    todayButtonTextColor: "#00AAAF"
-  });
-
 function RecipesScreen () {
   React.useEffect(() => {
     console.log('RecipesScreen mounted');
@@ -68,78 +64,202 @@ function MealPlanScreen () {
   React.useEffect(() => {
     console.log('MealPlanScreen mounted');
 
-
     return () => console.log('MealPlanScreen unmounted');
   }, []);
 
-      const [selected, setSelected] = useState(false);
-  
+  const todayString = new Date().toISOString().split('T')[0];
+  const [selected, setSelected] = useState(todayString);
+
+  // Adds/subtracts a number of days from a 'YYYY-MM-DD' string, staying in
+  // UTC throughout so we don't get off-by-one bugs from local timezone
+  // shifts.
+  function addDays(dateString, deltaDays) {
+    const date = new Date(`${dateString}T00:00:00Z`);
+    date.setUTCDate(date.getUTCDate() + deltaDays);
+    return date.toISOString().split('T')[0];
+  }
+
+  // Finds the Monday on/before the given date. Used so "next/previous week"
+  // always lands exactly on a Monday, regardless of which day was selected
+  // beforehand — this is what actually guarantees the "locks to Monday"
+  // behavior, rather than just shifting the previously-selected weekday by 7.
+  function getMonday(dateString) {
+    const date = new Date(`${dateString}T00:00:00Z`);
+    const day = date.getUTCDay(); // 0 = Sunday ... 6 = Saturday
+    const diffToMonday = day === 0 ? -6 : 1 - day;
+    date.setUTCDate(date.getUTCDate() + diffToMonday);
+    return date.toISOString().split('T')[0];
+  }
+
+  const goToPreviousWeek = () => setSelected((prev) => addDays(getMonday(prev), -7));
+  const goToNextWeek = () => setSelected((prev) => addDays(getMonday(prev), 7));
+
+  // --- Self-built week row -----------------------------------------------
+  // We stopped relying on react-native-calendars' WeekCalendar to visually
+  // track `selected` — it doesn't reliably re-scroll itself when the date
+  // changes from outside its own internal swipe gesture, which was exactly
+  // why the blue circle updated but the visible week never actually moved.
+  // Instead, we compute and render the 7 visible dates ourselves every
+  // render, so what's on screen is ALWAYS in sync with `selected` — no
+  // separate internal scroll state that can fall out of sync.
+  const weekStart = getMonday(selected);
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+  // ----------------------------------------------------------------------------
+
+  // --- Manual swipe detection, with a debounce ------------------------------
+  // Detects a horizontal swipe ourselves (rather than relying on the
+  // library's own gesture handling) and calls the EXACT same
+  // goToNextWeek/goToPreviousWeek functions the arrow buttons use, so a
+  // swipe always behaves identically to a button tap.
+  //
+  // swipeLockRef adds a 1.5s cooldown, but ONLY for swipe-triggered changes
+  // (the arrow buttons below don't check this at all, and stay instantly
+  // responsive on every tap). Without this, a single continuous swipe
+  // gesture — or a quick flick — could otherwise fire more than once and
+  // jump two or more weeks instead of one.
+  const SWIPE_THRESHOLD = 50; // pixels of horizontal drag before it counts as a swipe
+  const SWIPE_COOLDOWN_MS = 500;
+  const swipeLockRef = React.useRef(false);
+
+  const handleSwipeNext = () => {
+    if (swipeLockRef.current) return;
+    swipeLockRef.current = true;
+    goToNextWeek();
+    setTimeout(() => {
+      swipeLockRef.current = false;
+    }, SWIPE_COOLDOWN_MS);
+  };
+
+  const handleSwipePrevious = () => {
+    if (swipeLockRef.current) return;
+    swipeLockRef.current = true;
+    goToPreviousWeek();
+    setTimeout(() => {
+      swipeLockRef.current = false;
+    }, SWIPE_COOLDOWN_MS);
+  };
+
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_evt, gestureState) => {
+        return Math.abs(gestureState.dx) > 20 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
+      },
+      onPanResponderRelease: (_evt, gestureState) => {
+        if (gestureState.dx <= -SWIPE_THRESHOLD) {
+          handleSwipeNext();
+        } else if (gestureState.dx >= SWIPE_THRESHOLD) {
+          handleSwipePrevious();
+        }
+      },
+    })
+  ).current;
+  // ----------------------------------------------------------------------------
+
+  // Label above the calendar, e.g. "January 2022" — based on the week's
+  // Monday, so it doesn't flicker between two month names if the selected
+  // date happens to be near a month boundary.
+  const headerLabel = new Date(`${weekStart}T00:00:00Z`).toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
 
   return (
-    <>
-    <CalendarProvider
-        date= {new Date().toISOString().split('T')[0]}
+    <View style={{ flex: 1 }}>
+      {/* Header — arrows call goToNextWeek/goToPreviousWeek directly, with
+          no debounce, so they're always instantly responsive. */}
+      <View style={mealPlanStyles.calendarHeader}>
+        <TouchableOpacity onPress={goToPreviousWeek} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="chevron-back" size={20} color="#3F6647" />
+        </TouchableOpacity>
+        <Text style={mealPlanStyles.calendarHeaderTitle}>{headerLabel}</Text>
+        <TouchableOpacity onPress={goToNextWeek} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+          <Ionicons name="chevron-forward" size={20} color="#3F6647" />
+        </TouchableOpacity>
+      </View>
 
-        showTodayButton
-        theme={todayBtnTheme}
-      
-      
-      >
-        {/* CHANGED: calendarWidth pins this to a phone-like width (matching
-            phoneFrame's maxWidth in index.tsx) instead of letting the library
-            measure the full browser window width — which is what was
-            spreading the day cells out on a wide laptop screen. On an actual
-            phone this wasn't really noticeable, since the window width there
-            is already phone-sized, but pinning it explicitly keeps it
-            correct in both places instead of depending on screen width. */}
-        <WeekCalendar testID={'weekcalendar'} firstDay={1} calendarWidth={430} markedDates={{
-        [selected]: {selected: true, disableTouchEvent: true, selectedDotColor: 'orange'}
-      }}>
+      {/* The week row itself — swipe handlers attached here via panHandlers */}
+      <View style={mealPlanStyles.weekRow} {...panResponder.panHandlers}>
+        {weekDates.map((dateString) => {
+          const dateObj = new Date(`${dateString}T00:00:00Z`);
+          const dayLetter = dateObj.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'UTC' });
+          const dayNumber = dateObj.getUTCDate();
+          const isSelected = dateString === selected;
 
-        </WeekCalendar>
+          return (
+            <TouchableOpacity
+              key={dateString}
+              style={mealPlanStyles.dayColumn}
+              onPress={() => setSelected(dateString)}
+            >
+              <Text style={mealPlanStyles.dayLetter}>{dayLetter}</Text>
+              <View style={[mealPlanStyles.dayNumberCircle, isSelected && mealPlanStyles.dayNumberCircleSelected]}>
+                <Text style={[mealPlanStyles.dayNumberText, isSelected && mealPlanStyles.dayNumberTextSelected]}>
+                  {dayNumber}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
 
-
-
-      </CalendarProvider>
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      {/* <RecipeList /> */}
-
- {/* <Calendar
-  
-      onDayPress={day => {
-        setSelected(day.dateString);
-      }}
-      markedDates={{
-        [selected]: {selected: true, disableTouchEvent: true, selectedDotColor: 'orange'}
-      }}
-
-      showTodayButton
-
-
-      
-      theme={{
-        backgroundColor: '#ffffff',
-        calendarBackground: '#ffffff',
-        textSectionTitleColor: '#b6c1cd',
-        selectedDayBackgroundColor: '#60f89a',
-        selectedDayTextColor: '#ffffff',
-        todayTextColor: '#60f89a',
-        dayTextColor: '#2d4150',
-        textDisabledColor: '#000000'
-      }}
-
-    /> */}
-     
-
-
-       <MealPlan mealimage = {"weather-sunny"} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
-      <MealPlan mealimage = {"weather-partly-cloudy"} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
-      <MealPlan mealimage = {'weather-night'} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
-      <MealPlan mealimage = {'weather-cloudy'} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan> 
-
-    </View></>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+        <MealPlan mealimage={'weather-sunny'} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
+        <MealPlan mealimage={'weather-partly-cloudy'} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
+        <MealPlan mealimage={'weather-night'} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
+        <MealPlan mealimage={'weather-cloudy'} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan>
+      </View>
+    </View>
   );
 }
+
+const mealPlanStyles = StyleSheet.create({
+  calendarHeader: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 14,
+    marginVertical: 10,
+  },
+  calendarHeaderTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#22331F',
+  },
+  weekRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  dayColumn: {
+    alignItems: 'center',
+    width: 40,
+  },
+  dayLetter: {
+    fontSize: 12,
+    color: '#9AA39C',
+    marginBottom: 6,
+  },
+  dayNumberCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayNumberCircleSelected: {
+    backgroundColor: '#2E6FA3',
+  },
+  dayNumberText: {
+    fontSize: 14,
+    color: '#22331F',
+  },
+  dayNumberTextSelected: {
+    color: '#FFFFFF',
+    fontWeight: '700',
+  },
+});
 
 function ProfileScreen() {
   React.useEffect(() => {
