@@ -25,7 +25,7 @@ const MEAL_TIMES = [
     { label: 'Dinner', icon: 'moon-outline', hour: 18 },
 ];
 
-function getClosestMeal(hour) {
+function getClosestMeal(hour: number) {
     let closest = MEAL_TIMES[0];
     let minDistance = Infinity;
 

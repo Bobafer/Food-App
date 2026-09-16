@@ -6,7 +6,7 @@ import {Instructions} from './instructions'
 
 
 
-export const Recipe = () => {
+export const RecipeScreen = () => {
 
     const [showPortion, setShowPortion] = useState(false);
 
