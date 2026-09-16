@@ -2,18 +2,34 @@ import React, {useState} from 'react';
 import { View,Text,Image,StyleSheet,TouchableOpacity, ImageSourcePropType } from "react-native"
 import { ChooseMeal } from './choosemeal';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import {Calendar, LocaleConfig} from 'react-native-calendars';
 
 type MealProps = {
     mealimage: "weather-sunny" | "weather-night" | 'weather-partly-cloudy' | 'weather-partly-cloudy';
     mealtxt: string;
     mealname: string;
+    // ADDED: the recipe currently assigned to this slot (or null/undefined
+    // if nothing's been picked yet), and a callback to save a new pick.
+    // Both are owned by MealPlanScreen (in NavBar.js), keyed by date+slot,
+    // which is what makes switching days and coming back show the right
+    // thing — this component itself holds none of that data permanently.
+    selectedRecipe?: { name: string; description: string; image: any } | null;
+    onSelectRecipe: (recipe: { name: string; description: string; image: any }) => void;
 }
 
 export const MealPlan = (props: MealProps) => {
 
     const [showChooseMeal, setShowChooseMeal] = useState(false);
-    const [selected, setSelected] = useState(false);
+
+    // CHANGED: when a recipe gets picked from ChooseMeal/RecipeList, this
+    // both reports it up to MealPlanScreen (so it actually gets saved) AND
+    // collapses this card back to its compact view — otherwise ChooseMeal
+    // and RecipeList would stay expanded underneath after picking something.
+    const handleRecipeSelected = (recipe: { name: string; description: string; image: any }) => {
+        props.onSelectRecipe(recipe);
+        setShowChooseMeal(false);
+    };
+
+    const hasSelectedRecipe = !!props.selectedRecipe;
 
     return(
         <View>
@@ -26,16 +42,25 @@ export const MealPlan = (props: MealProps) => {
         >
 
             <View style={styles.row}>
-                <MaterialCommunityIcons name={props.mealimage} size={50} color="#5C8A66" style={{ marginRight: 12 }} />
-                {/* <Image source={props.mealimage} style={styles.image} /> */}
+                {hasSelectedRecipe ? (
+                    // CHANGED: once a recipe is assigned, show its actual
+                    // image instead of the generic weather-style icon.
+                    <Image source={props.selectedRecipe!.image} style={styles.image} />
+                ) : (
+                    <MaterialCommunityIcons name={props.mealimage} size={50} color="#5C8A66" style={{ marginRight: 12 }} />
+                )}
                 <View style={styles.textWrapper}>
                     <Text style={styles.MealText}>{props.mealtxt}</Text>
-                    <Text style={styles.MealName}>{props.mealname}</Text>
+                    {/* CHANGED: shows the selected recipe's name once one is
+                        picked, falling back to the original placeholder
+                        text (mealname) otherwise. */}
+                    <Text style={styles.MealName}>
+                        {hasSelectedRecipe ? props.selectedRecipe!.name : props.mealname}
+                    </Text>
                 </View>
             </View>
 
-            {showChooseMeal && <ChooseMeal/>}
-            {/* {showChooseMeal ? <ChooseMeal></ChooseMeal> : null} */}
+            {showChooseMeal && <ChooseMeal onSelect={handleRecipeSelected} />}
         </TouchableOpacity>
 
 

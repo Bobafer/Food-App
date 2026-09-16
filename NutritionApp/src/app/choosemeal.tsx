@@ -2,7 +2,9 @@ import {View, Text,  StyleSheet, Button,TouchableOpacity} from 'react-native';
 import React, { useState } from 'react';
 import { RecipeList } from './mealplanrecipelist';
 
-export const ChooseMeal = () => {
+// ADDED: onSelect — forwarded straight through to RecipeList (and from
+// there, to every Recipe card inside it).
+export const ChooseMeal = ({ onSelect }) => {
 
     const [ showRecipeList, setShowRecipeList] = useState(false);
 
@@ -18,7 +20,7 @@ export const ChooseMeal = () => {
                     </View>
             </View>
 
-        {showRecipeList && <RecipeList/>}
+        {showRecipeList && <RecipeList onSelect={onSelect}/>}
     </TouchableOpacity>
     )
 }

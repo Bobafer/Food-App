@@ -70,6 +70,35 @@ function MealPlanScreen () {
   const todayString = new Date().toISOString().split('T')[0];
   const [selected, setSelected] = useState(todayString);
 
+  // --- Planned meals, keyed by date then slot ---------------------------
+  // Shape: { '2026-09-16': { Breakfast: {name, description, image}, ... } }
+  // This is the ONLY place this data lives — MealPlan/ChooseMeal/RecipeList/
+  // Recipe don't remember anything themselves, they just report selections
+  // up to here and read back whatever's stored for the current `selected`
+  // date. That's what makes switching days and coming back show the right
+  // thing automatically — there's no separate "restore" step needed, since
+  // getMealForSlot always just re-reads from this same object using
+  // whichever date happens to be selected at render time.
+  //
+  // Heads up: this only lives in memory for now — closing the app fully
+  // would reset it, same as the inventory screen before AsyncStorage was
+  // added there. Same fix could be applied here later if you want it to
+  // survive app restarts too.
+  const [plannedMeals, setPlannedMeals] = useState({});
+
+  const getMealForSlot = (dateString, slot) => plannedMeals[dateString]?.[slot] ?? null;
+
+  const setMealForSlot = (dateString, slot, recipe) => {
+    setPlannedMeals((prev) => ({
+      ...prev,
+      [dateString]: {
+        ...prev[dateString],
+        [slot]: recipe,
+      },
+    }));
+  };
+  // ----------------------------------------------------------------------------
+
   // Adds/subtracts a number of days from a 'YYYY-MM-DD' string, staying in
   // UTC throughout so we don't get off-by-one bugs from local timezone
   // shifts.
@@ -204,10 +233,34 @@ function MealPlanScreen () {
       </View>
 
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-        <MealPlan mealimage={'weather-sunny'} mealtxt="Breakfast" mealname="No Breakfast Currently Selected"></MealPlan>
-        <MealPlan mealimage={'weather-partly-cloudy'} mealtxt="Lunch" mealname="No Lunch Currently Selected"></MealPlan>
-        <MealPlan mealimage={'weather-night'} mealtxt="Dinner" mealname="No Dinner Currently Selected"></MealPlan>
-        <MealPlan mealimage={'weather-cloudy'} mealtxt="Snack" mealname="No Snack Currently Selected"></MealPlan>
+        <MealPlan
+          mealimage={'weather-sunny'}
+          mealtxt="Breakfast"
+          mealname="No Breakfast Currently Selected"
+          selectedRecipe={getMealForSlot(selected, 'Breakfast')}
+          onSelectRecipe={(recipe) => setMealForSlot(selected, 'Breakfast', recipe)}
+        ></MealPlan>
+        <MealPlan
+          mealimage={'weather-partly-cloudy'}
+          mealtxt="Lunch"
+          mealname="No Lunch Currently Selected"
+          selectedRecipe={getMealForSlot(selected, 'Lunch')}
+          onSelectRecipe={(recipe) => setMealForSlot(selected, 'Lunch', recipe)}
+        ></MealPlan>
+        <MealPlan
+          mealimage={'weather-night'}
+          mealtxt="Dinner"
+          mealname="No Dinner Currently Selected"
+          selectedRecipe={getMealForSlot(selected, 'Dinner')}
+          onSelectRecipe={(recipe) => setMealForSlot(selected, 'Dinner', recipe)}
+        ></MealPlan>
+        <MealPlan
+          mealimage={'weather-cloudy'}
+          mealtxt="Snack"
+          mealname="No Snack Currently Selected"
+          selectedRecipe={getMealForSlot(selected, 'Snack')}
+          onSelectRecipe={(recipe) => setMealForSlot(selected, 'Snack', recipe)}
+        ></MealPlan>
       </View>
     </View>
   );
