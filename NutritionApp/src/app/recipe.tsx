@@ -13,7 +13,7 @@ import {Instructions} from './instructions'
 // so React Navigation hands it to us as route.params. The plain
 // `autoOpenInstructions` prop is kept too, so <Recipe autoOpenInstructions />
 // still works if this is ever rendered directly instead of as a screen.
-export const Recipe = ({ autoOpenInstructions = false, route }) => {
+export const RecipeScreen = ({ autoOpenInstructions = false, route }) => {
 
     const shouldAutoOpen = route?.params?.autoOpenInstructions ?? autoOpenInstructions;
     const [showPortion, setShowPortion] = useState(shouldAutoOpen);
