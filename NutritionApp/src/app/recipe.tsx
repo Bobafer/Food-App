@@ -4,38 +4,16 @@ import React, {useState} from 'react';
 import {Portion} from './portion';
 import {Instructions} from './instructions'
 
-// ADDED: pulled the hardcoded values out into their own object — this is
-// the actual data that gets handed back via onSelect when this card is
-// tapped in "choose a meal" mode. Once there's more than one real recipe,
-// this becomes a prop instead of a hardcoded constant.
-const PIZZA_RECIPE = {
-    name: 'Pizza',
-    description: 'Italian bread with sauce',
-    image: pizza,
-};
 
-// ADDED: autoOpenInstructions — when true, the Portion section (and
-// Instructions inside it) start already expanded, instead of requiring a tap.
-// Only passed as true from Home's "Recommended Recipe" card; the normal
-// Recipes tab renders <Recipe /> with no prop, so it stays closed by default.
-//
-// ADDED: onSelect — when provided, this card is in "choose a meal" mode:
-// tapping it calls onSelect(PIZZA_RECIPE) to report which recipe was picked,
-// instead of expanding Portion/Instructions. Used by RecipeList when it's
-// shown inside ChooseMeal.
-export const Recipe = ({ autoOpenInstructions = false, onSelect }) => {
 
-    const [showPortion, setShowPortion] = useState(autoOpenInstructions);
+export const RecipeScreen = () => {
 
-    const handlePress = () => {
-        if (onSelect) {
-            onSelect(PIZZA_RECIPE);
-            return;
-        }
-        setShowPortion(!showPortion);
-    };
+    const [showPortion, setShowPortion] = useState(false);
 
     return(
+        // ADDED: SafeAreaView + ScrollView wrapper so this fits the screen
+        // properly and scrolls instead of overflowing when Portion/Instructions
+        // expand underneath it.
         <SafeAreaView style={styles.screen}>
             <ScrollView
                 contentContainerStyle={styles.scrollContent}
@@ -43,20 +21,20 @@ export const Recipe = ({ autoOpenInstructions = false, onSelect }) => {
             >
                 <TouchableOpacity
                 style={styles.container}
-                onPress={handlePress}
+                onPress={() => setShowPortion(!showPortion)}
                 activeOpacity={0.8}>
-                    <Image source ={PIZZA_RECIPE.image} style ={styles.image}></Image>
+                    <Image source ={pizza} style ={styles.image}></Image>
 
                 <View style={styles.textWrapper}>
-                    <Text style={styles.recpieTitle}>{PIZZA_RECIPE.name}</Text>
-                    <Text style={styles.recipeDescription}>{PIZZA_RECIPE.description}</Text>
+                    <Text style={styles.recpieTitle}>Pizza</Text>
+                    <Text style={styles.recipeDescription}>Italian bread with sauce</Text>
                     <View style={styles.totalContainer}>
                         <Text style={styles.calorieTitle}>Total Calories:</Text>
                         <Text style={styles.totalValue}>1200g?</Text>
                     </View>
                 </View>
 
-                {!onSelect && showPortion && <Portion autoOpenInstructions={autoOpenInstructions} />}
+                {showPortion && <Portion />}
             </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
@@ -65,6 +43,8 @@ export const Recipe = ({ autoOpenInstructions = false, onSelect }) => {
 };
 
 const styles = StyleSheet.create({
+    // ADDED: screen and scrollContent wrap the existing card so it's centered,
+    // padded, and scrollable instead of taking up the raw screen unconstrained.
     screen: {
         flex: 1,
         backgroundColor: '#FFFFFF',
