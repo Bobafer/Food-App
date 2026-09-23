@@ -10,28 +10,25 @@ import {
     StatusBar,
     Alert,
     Modal,
+    ActivityIndicator,
 } from 'react-native';
-import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 
-// --- Meal-time logic -------------------------------------------------------
-// Each meal has a representative hour (24hr clock). To find the "closest"
-// meal for a given hour, we measure the CIRCULAR distance to each one (so
-// e.g. 2 AM correctly counts as close to breakfast, not far from it just
-// because 2 comes numerically before 8).
 const MEAL_TIMES = [
     { label: 'Breakfast', icon: 'sunny-outline', hour: 8 },
     { label: 'Lunch', icon: 'partly-sunny-outline', hour: 12 },
     { label: 'Dinner', icon: 'moon-outline', hour: 18 },
 ];
 
-function getClosestMeal(hour) {
+function getClosestMeal(hour: number) {
     let closest = MEAL_TIMES[0];
     let minDistance = Infinity;
 
     MEAL_TIMES.forEach((meal) => {
         const rawDiff = Math.abs(hour - meal.hour);
-        const circularDiff = Math.min(rawDiff, 24 - rawDiff); // wraps around midnight
+        const circularDiff = Math.min(rawDiff, 24 - rawDiff);
+
         if (circularDiff < minDistance) {
             minDistance = circularDiff;
             closest = meal;
@@ -41,11 +38,6 @@ function getClosestMeal(hour) {
     return closest;
 }
 
-// --- Real-world time, selectable timezone -----------------------------------
-// Every entry uses an IANA timezone id — Intl.DateTimeFormat reads the real
-// current time AS IF you were standing in that zone, and automatically
-// handles daylight saving, regardless of what timezone the device itself is
-// set to.
 const TIME_ZONES = [
     { label: 'Eastern Time', zone: 'America/New_York' },
     { label: 'Central Time', zone: 'America/Chicago' },
@@ -55,15 +47,15 @@ const TIME_ZONES = [
     { label: 'Hawaii Time', zone: 'Pacific/Honolulu' },
 ];
 
-function makeHourFormatter(zone) {
+function makeHourFormatter(zone: string) {
     return new Intl.DateTimeFormat('en-US', {
         timeZone: zone,
         hour: 'numeric',
-        hourCycle: 'h23', // forces a clean 0-23 range (avoids "24" at midnight)
+        hourCycle: 'h23',
     });
 }
 
-function makeClockDisplayFormatter(zone) {
+function makeClockDisplayFormatter(zone: string) {
     return new Intl.DateTimeFormat('en-US', {
         timeZone: zone,
         hour: 'numeric',
@@ -71,24 +63,18 @@ function makeClockDisplayFormatter(zone) {
         hour12: true,
     });
 }
+
 // ----------------------------------------------------------------------------
 
-export function HomeScreen(){
-    // Real, live clock — starts at the actual current moment...
+export function HomeScreen() {
+
     const [now, setNow] = useState(new Date());
 
-    // Which timezone's clock/meal-detection we're currently showing.
-    // Defaults to Eastern (Northeast US), matching the original behavior.
     const [selectedZoneIndex, setSelectedZoneIndex] = useState(0);
     const [zonePickerVisible, setZonePickerVisible] = useState(false);
+
     const selectedZone = TIME_ZONES[selectedZoneIndex];
 
-    // Holds the URI of whatever photo the user just took, so we can preview
-    // it (and, later, hand it off to whatever does the fridge analysis).
-    const [capturedPhoto, setCapturedPhoto] = useState(null);
-
-    // ...and ticks forward every second, so the displayed time and the
-    // meal badge both stay accurate without needing a refresh.
     useEffect(() => {
         const intervalId = setInterval(() => {
             setNow(new Date());
@@ -97,25 +83,234 @@ export function HomeScreen(){
         return () => clearInterval(intervalId);
     }, []);
 
-    // Rebuild the formatters only when the selected zone actually changes,
-    // rather than on every tick of the clock.
-    const hourFormatter = useMemo(() => makeHourFormatter(selectedZone.zone), [selectedZone.zone]);
-    const clockDisplayFormatter = useMemo(() => makeClockDisplayFormatter(selectedZone.zone), [selectedZone.zone]);
+    const hourFormatter = useMemo(
+        () => makeHourFormatter(selectedZone.zone),
+        [selectedZone.zone]
+    );
+
+    const clockDisplayFormatter = useMemo(
+        () => makeClockDisplayFormatter(selectedZone.zone),
+        [selectedZone.zone]
+    );
 
     const currentHour = parseInt(hourFormatter.format(now), 10);
     const closestMeal = getClosestMeal(currentHour);
 
-    // Requests camera permission (if not already granted), then opens the
-    // native camera. If the user takes a photo (doesn't cancel), its URI
-    // gets stored in capturedPhoto.
+    
+    //the photo
+    const [capturedPhoto, setCapturedPhoto] =
+        useState<string | null>(null);
+    //is gemini analyzing?
+    const [analyzing, setAnalyzing] =
+        useState<boolean>(false);
+    
+        type Ingredient = {
+        name: string;
+        confidence: 'high' | 'medium' | 'low';
+    };
+
+    const [ingredients, setIngredients] =
+        useState<Ingredient[]>([]);
+
+    // CONVERT IMAGE URI TO BASE64 - base64 = image --> words
+    const imageUriToBase64 = async (imageUri: string | URL | Request) => {
+        const response = await fetch(imageUri);
+        //did loading work
+        if (!response.ok) {
+            throw new Error('Could not read the captured image.');
+        }
+        //blob = binary data
+        const blob = await response.blob();
+
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onloadend = () => {
+                try {
+                    //makes sure it is a string as base64 is a string always
+                    const result = reader.result;
+
+                    if (typeof result !== 'string') {
+                        reject(
+                            new Error(
+                                'Could not convert image to base64.'
+                            )
+                        );
+                        return;
+                    }
+
+                    const base64Data = result.split(',')[1];
+
+                    if (!base64Data) {
+                        reject(
+                            new Error(
+                                'Invalid base64 image data.'
+                            )
+                        );
+                        return;
+                    }
+
+                    resolve(base64Data);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+
+            reader.onerror = () => {
+                reject(new Error('Failed to read image.'));
+            };
+
+            reader.readAsDataURL(blob);
+        });
+    };
+
+    // SEND PHOTO TO GEMINI
+
+    const analyzeFridgePhoto = async (imageUri: string) => {
+    try {
+        setAnalyzing(true);
+
+        // Clear previous ingredients while analyzing the new photo.
+        setIngredients([]);
+
+        // Get the API key from Expo's environment variables.
+        const GEMINI_API_KEY =
+            process.env.EXPO_PUBLIC_AI_API_KEY;
+
+        if (!GEMINI_API_KEY) {
+            throw new Error(
+                'Gemini API key is missing. Check your .env file.'
+            );
+        }
+
+        // Convert the photo to base64.
+        const base64Image = await imageUriToBase64(imageUri);
+
+        // Call Gemini directly.
+        const geminiResponse = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
+            {
+                method: 'POST',
+
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+
+                body: JSON.stringify({
+                    contents: [
+                        {
+                            parts: [
+                                {
+                                    inlineData: {
+                                        mimeType: 'image/jpeg',
+                                        data: base64Image,
+                                    },
+                                },
+                                {
+                                    text: `
+                                        You are analyzing a photo of a refrigerator for a cooking app called PickToPlate.
+                                        Identify the food ingredients that are clearly visible in the refrigerator.
+                                        Return ONLY valid JSON.
+                                        Use exactly this format:
+                                            {
+                                            "ingredients": [
+                                                {
+                                                "name": "eggs",
+                                                "confidence": "high"
+                                                }
+                                            ]
+                                            }
+                                        Rules:
+                                        - Only include food ingredients that are actually visible.
+                                        - Do not invent ingredients.
+                                        - Do not include non-food objects.
+                                        - If you see a container but cannot determine what is inside, do not guess.
+                                        - Use simple ingredient names.
+                                        - Confidence must be exactly one of:
+                                        "high", "medium", or "low".
+                                        - If an ingredient is uncertain, use "low".
+                                        - Do not include markdown.
+                                        - Do not include \`\`\`json.
+                                        - Return only the JSON object.
+                                    `,
+                                },
+                            ],
+                        },
+                    ],
+                }),
+            }
+        );
+
+        // Check whether Gemini successfully responded.
+        if (!geminiResponse.ok) {
+            const errorText = await geminiResponse.text();
+
+            throw new Error(
+                `Gemini request failed: ${geminiResponse.status} ${errorText}`
+            );
+        }
+
+        // Convert Gemini response into JSON.
+        const geminiData = await geminiResponse.json();
+
+        // Get the text Gemini generated.
+        const responseText =
+            geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!responseText) {
+            throw new Error(
+                'Gemini did not return any analysis.'
+            );
+        }
+
+        // Remove markdown code fences if Gemini happens to include them.
+        const cleanedText = responseText
+            .replace(/```json/g, '')
+            .replace(/```/g, '')
+            .trim();
+
+        // Parse Gemini's JSON response.
+        const parsedResult = JSON.parse(cleanedText);
+
+        // Make sure the response contains an ingredients array.
+        if (!Array.isArray(parsedResult.ingredients)) {
+            throw new Error(
+                'Gemini returned an invalid ingredients format.'
+            );
+        }
+
+        // Display the ingredients in the UI.
+        setIngredients(parsedResult.ingredients);
+    } catch (error) {
+        console.error(
+            'Error analyzing fridge photo:',
+            error
+        );
+
+        Alert.alert(
+            'Analysis failed',
+            error instanceof Error
+                ? error.message
+                : 'Something went wrong while analyzing your fridge photo.'
+        );
+    } finally {
+        // Always stop the loading state.
+        setAnalyzing(false);
+    }
+};
+
+
+    // TAKE PHOTO
     const handleTakePhoto = async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
+        const { status } =
+            await ImagePicker.requestCameraPermissionsAsync();
 
         if (status !== 'granted') {
             Alert.alert(
                 'Camera permission needed',
                 'PickToPlate needs camera access to scan your fridge.'
             );
+
             return;
         }
 
@@ -125,52 +320,84 @@ export function HomeScreen(){
         });
 
         if (!result.canceled) {
-            setCapturedPhoto(result.assets[0].uri);
-            // TODO: this is where you'd kick off fridge-photo analysis,
-            // e.g. uploading capturedPhoto to your backend/model.
+            const photoUri = result.assets[0].uri;
+
+            // Show the photo immediately.
+            setCapturedPhoto(photoUri);
+
+            // Analyze THIS photo directly.
+            //
+            // We don't use capturedPhoto here because React state updates
+            // asynchronously.
+            analyzeFridgePhoto(photoUri);
         }
     };
 
-    return(
+    return (
         <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle='dark-content' />
+            <StatusBar barStyle="dark-content" />
 
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>PickToPlate</Text>
+                <Text style={styles.headerTitle}>
+                    PickToPlate
+                </Text>
             </View>
 
-            {/* Live clock — shows the currently selected timezone. Tap the
-                triangle to pick a different one. */}
+            {/* Live clock */}
             <View style={styles.clockRow}>
-                <Ionicons name="time-outline" size={14} color="#5C8A66" />
-                <Text style={styles.clockLabel}>{selectedZone.label}:</Text>
-                <Text style={styles.clockValue}>{clockDisplayFormatter.format(now)}</Text>
+                <Ionicons
+                    name="time-outline"
+                    size={14}
+                    color="#5C8A66"
+                />
+
+                <Text style={styles.clockLabel}>
+                    {selectedZone.label}:
+                </Text>
+
+                <Text style={styles.clockValue}>
+                    {clockDisplayFormatter.format(now)}
+                </Text>
 
                 <TouchableOpacity
                     onPress={() => setZonePickerVisible(true)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    hitSlop={{
+                        top: 8,
+                        bottom: 8,
+                        left: 8,
+                        right: 8,
+                    }}
                     style={styles.zoneDropdownButton}
                 >
-                    <Ionicons name="caret-down" size={12} color="#5C8A66" />
+                    <Ionicons
+                        name="caret-down"
+                        size={12}
+                        color="#5C8A66"
+                    />
                 </TouchableOpacity>
             </View>
 
-            {/* Timezone picker — a simple dropdown list. Tapping a zone (or
-                the backdrop) closes it. */}
+            {/* Timezone picker */}
             <Modal
                 visible={zonePickerVisible}
                 transparent
                 animationType="fade"
-                onRequestClose={() => setZonePickerVisible(false)}
+                onRequestClose={() =>
+                    setZonePickerVisible(false)
+                }
             >
                 <TouchableOpacity
                     style={styles.zoneModalBackdrop}
                     activeOpacity={1}
-                    onPress={() => setZonePickerVisible(false)}
+                    onPress={() =>
+                        setZonePickerVisible(false)
+                    }
                 >
                     <View style={styles.zoneDropdownCard}>
                         {TIME_ZONES.map((zone, index) => {
-                            const isSelected = index === selectedZoneIndex;
+                            const isSelected =
+                                index === selectedZoneIndex;
+
                             return (
                                 <TouchableOpacity
                                     key={zone.zone}
@@ -180,11 +407,22 @@ export function HomeScreen(){
                                         setZonePickerVisible(false);
                                     }}
                                 >
-                                    <Text style={[styles.zoneOptionText, isSelected && styles.zoneOptionTextSelected]}>
+                                    <Text
+                                        style={[
+                                            styles.zoneOptionText,
+                                            isSelected &&
+                                                styles.zoneOptionTextSelected,
+                                        ]}
+                                    >
                                         {zone.label}
                                     </Text>
+
                                     {isSelected && (
-                                        <Ionicons name="checkmark" size={16} color="#3F6647" />
+                                        <Ionicons
+                                            name="checkmark"
+                                            size={16}
+                                            color="#3F6647"
+                                        />
                                     )}
                                 </TouchableOpacity>
                             );
@@ -197,185 +435,367 @@ export function HomeScreen(){
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
             >
-                <Text style={styles.title}>Snap Your Fridge</Text>
+                <Text style={styles.title}>
+                    Snap Your Fridge
+                </Text>
 
-              <TouchableOpacity
-              style={styles.cameraButton}
-              activeOpacity={0.85}
-              onPress={handleTakePhoto}
-              >
-              <View style={styles.cameraIconCircle}>
-                  <Ionicons name="camera-outline" size = {40} color = "#5C8A66" />
-              </View>
-              <Text style={styles.cameraButtonText}>Take Photo</Text>
-              </TouchableOpacity>
+                {/* CAMERA BUTTON */}
+                <TouchableOpacity
+                    style={[
+                        styles.cameraButton,
+                        analyzing && styles.cameraButtonDisabled,
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={handleTakePhoto}
+                    disabled={analyzing}
+                >
+                    <View style={styles.cameraIconCircle}>
+                        <Ionicons
+                            name="camera-outline"
+                            size={40}
+                            color="#5C8A66"
+                        />
+                    </View>
 
-              {/* Preview of the photo just taken, if any. Remove this once
-                  you're navigating straight to an analysis/results screen
-                  instead of staying on Home after a capture. */}
-              {capturedPhoto && (
-                  <Image source={{ uri: capturedPhoto }} style={styles.previewImage} />
-              )}
+                    <Text style={styles.cameraButtonText}>
+                        {analyzing
+                            ? 'Analyzing...'
+                            : 'Take Photo'}
+                    </Text>
+                </TouchableOpacity>
 
-              {/* Closest-meal badge — driven by the real Eastern Time hour
-                  above, via getClosestMeal(easternHour). */}
-              <View style={styles.mealBadge}>
-                  <MaterialCommunityIcons name={closestMeal.icon === 'sunny-outline' ? 'weather-sunny' : closestMeal.icon === 'moon-outline' ? 'weather-night' : 'weather-partly-cloudy'} size={20} color="#3F6647" />
-                  <Text style={styles.mealBadgeText}>{closestMeal.label}</Text>
-              </View>
+                {/* PHOTO PREVIEW */}
+                {capturedPhoto && (
+                    <Image
+                        source={{ uri: capturedPhoto }}
+                        style={styles.previewImage}
+                    />
+                )}
 
-              <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
-          </ScrollView>
+                {/* GEMINI LOADING STATE */}
+                {analyzing && (
+                    <View style={styles.analyzingContainer}>
+                        <ActivityIndicator
+                            size="small"
+                            color="#3F6647"
+                        />
 
-            {/* The bottom tab bar used to be faked here with a static row of
-                icons. It's removed now — NavBar.js renders a REAL tab bar
-                (via React Navigation) around this screen instead, so this
-                component only needs to be the "Home" tab's content. */}
+                        <Text style={styles.analyzingText}>
+                            Analyzing your fridge...
+                        </Text>
+                    </View>
+                )}
 
+                {/* INGREDIENT RESULTS */}
+                {ingredients.length > 0 && !analyzing && (
+                    <View style={styles.ingredientsContainer}>
+                        <Text style={styles.ingredientsTitle}>
+                            Ingredients Found
+                        </Text>
+
+                        {ingredients.map(
+                            (ingredient, index) => (
+                                <View
+                                    key={`${ingredient.name}-${index}`}
+                                    style={styles.ingredientRow}
+                                >
+                                    <View style={styles.ingredientLeft}>
+                                        <View
+                                            style={
+                                                styles.ingredientBullet
+                                            }
+                                        />
+
+                                        <Text
+                                            style={
+                                                styles.ingredientName
+                                            }
+                                        >
+                                            {ingredient.name}
+                                        </Text>
+                                    </View>
+
+                                    <Text
+                                        style={
+                                            styles.ingredientConfidence
+                                        }
+                                    >
+                                        {ingredient.confidence}
+                                    </Text>
+                                </View>
+                            )
+                        )}
+                    </View>
+                )}
+
+                {/* MEAL BADGE */}
+                <View style={styles.mealBadge}>
+                    <MaterialCommunityIcons
+                        name={
+                            closestMeal.icon ===
+                            'sunny-outline'
+                                ? 'weather-sunny'
+                                : closestMeal.icon ===
+                                  'moon-outline'
+                                ? 'weather-night'
+                                : 'weather-partly-cloudy'
+                        }
+                        size={20}
+                        color="#3F6647"
+                    />
+
+                    <Text style={styles.mealBadgeText}>
+                        {closestMeal.label}
+                    </Text>
+                </View>
+
+                <Text style={styles.caption}>
+                    Analyze your ingredients in seconds
+                </Text>
+            </ScrollView>
         </SafeAreaView>
-    )
+    );
 }
 
-
+// ----------------------------------------------------------------------------
+// STYLES
+// ----------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
     safeArea: {
-        flex:1,
+        flex: 1,
         backgroundColor: '#FFFFFF',
     },
+
     header: {
-        backgroundColor:'#EAF3EA',
+        backgroundColor: '#EAF3EA',
         paddingVertical: 16,
         alignItems: 'center',
     },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#3F6647',
-  },
-  clockRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 8,
-    backgroundColor: '#F3F6F2',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E9E3',
-  },
-  clockLabel: {
-    fontSize: 11,
-    color: '#5F6B5F',
-    fontWeight: '600',
-  },
-  clockValue: {
-    fontSize: 12,
-    color: '#3F6647',
-    fontWeight: '700',
-  },
-  zoneDropdownButton: {
-    marginLeft: 2,
-    padding: 2,
-  },
-  zoneModalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(20, 30, 20, 0.25)',
-    alignItems: 'center',
-    paddingTop: 90,
-  },
-  zoneDropdownCard: {
-    width: 220,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    paddingVertical: 6,
-    boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.15)',
-  },
-  zoneOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 11,
-    paddingHorizontal: 16,
-  },
-  zoneOptionText: {
-    fontSize: 14,
-    color: '#22331F',
-  },
-  zoneOptionTextSelected: {
-    fontWeight: '700',
-    color: '#3F6647',
-  },
-  content: {
-    width: '100%',
-    maxWidth: 480,
-    alignSelf: 'center',
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    paddingTop: 28,
-    paddingBottom: 40,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#22331F',
-    marginBottom: 24,
-  },
-  cameraButton: {
-    width: '100%',
-    aspectRatio: 1.6,
-    maxHeight: 260,
-    backgroundColor: '#6FA377',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cameraIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  cameraButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  previewImage: {
-    width: '100%',
-    aspectRatio: 1.6,
-    maxHeight: 260,
-    borderRadius: 16,
-    marginTop: 16,
-    backgroundColor: '#E5E5E5',
-  },
-  mealBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 20,
-    backgroundColor: '#EAF3EA',
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 16,
-  },
-  mealBadgeText: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: '#3F6647',
-  },
-  caption: {
-    marginTop: 50,
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#3F6647',
-    textAlign: 'center',
-    backgroundColor: '#EAF3EA',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
+
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#3F6647',
+    },
+
+    clockRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: 8,
+        backgroundColor: '#F3F6F2',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E9E3',
+    },
+
+    clockLabel: {
+        fontSize: 11,
+        color: '#5F6B5F',
+        fontWeight: '600',
+    },
+
+    clockValue: {
+        fontSize: 12,
+        color: '#3F6647',
+        fontWeight: '700',
+    },
+
+    zoneDropdownButton: {
+        marginLeft: 2,
+        padding: 2,
+    },
+
+    zoneModalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(20, 30, 20, 0.25)',
+        alignItems: 'center',
+        paddingTop: 90,
+    },
+
+    zoneDropdownCard: {
+        width: 220,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        paddingVertical: 6,
+
+        // If boxShadow causes issues on your Expo version,
+        // you can remove this property.
+        boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.15)',
+    },
+
+    zoneOptionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 11,
+        paddingHorizontal: 16,
+    },
+
+    zoneOptionText: {
+        fontSize: 14,
+        color: '#22331F',
+    },
+
+    zoneOptionTextSelected: {
+        fontWeight: '700',
+        color: '#3F6647',
+    },
+
+    content: {
+        width: '100%',
+        maxWidth: 480,
+        alignSelf: 'center',
+        paddingHorizontal: 24,
+        alignItems: 'center',
+        paddingTop: 28,
+        paddingBottom: 40,
+    },
+
+    title: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#22331F',
+        marginBottom: 24,
+    },
+
+    cameraButton: {
+        width: '100%',
+        aspectRatio: 1.6,
+        maxHeight: 260,
+        backgroundColor: '#6FA377',
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    cameraButtonDisabled: {
+        opacity: 0.7,
+    },
+
+    cameraIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+
+    cameraButtonText: {
+        color: '#FFFFFF',
+        fontSize: 17,
+        fontWeight: '600',
+    },
+
+    previewImage: {
+        width: '100%',
+        aspectRatio: 1.6,
+        maxHeight: 260,
+        borderRadius: 16,
+        marginTop: 16,
+        backgroundColor: '#E5E5E5',
+    },
+
+    // ------------------------------------------------------------------------
+    // GEMINI UI
+    // ------------------------------------------------------------------------
+
+    analyzingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 18,
+        gap: 10,
+    },
+
+    analyzingText: {
+        fontSize: 15,
+        color: '#5C8A66',
+        fontWeight: '600',
+    },
+
+    ingredientsContainer: {
+        width: '100%',
+        marginTop: 20,
+        backgroundColor: '#EAF3EA',
+        borderRadius: 16,
+        padding: 18,
+    },
+
+    ingredientsTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginBottom: 8,
+    },
+
+    ingredientRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 11,
+        borderBottomWidth: 1,
+        borderBottomColor: '#D5E3D5',
+    },
+
+    ingredientLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+
+    ingredientBullet: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: '#6FA377',
+        marginRight: 10,
+    },
+
+    ingredientName: {
+        fontSize: 16,
+        color: '#22331F',
+        fontWeight: '500',
+        textTransform: 'capitalize',
+    },
+
+    ingredientConfidence: {
+        fontSize: 12,
+        color: '#5C8A66',
+        fontWeight: '600',
+        textTransform: 'capitalize',
+    },
+
+    mealBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 20,
+        backgroundColor: '#EAF3EA',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 16,
+    },
+
+    mealBadgeText: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#3F6647',
+    },
+
+    caption: {
+        marginTop: 50,
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#3F6647',
+        textAlign: 'center',
+        backgroundColor: '#EAF3EA',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
 });

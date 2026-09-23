@@ -1,549 +1,820 @@
-import { useState, useEffect } from "react";
-import {Alert, ScrollView, Pressable, StyleSheet, Text, View, Image, TextInput,} from "react-native";
-import {GoogleGenAI} from "@google/genai";
-import { Asset } from "expo-asset";
-import {File} from "expo-file-system";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, { useState, useEffect, useMemo } from 'react';
+import {
+    SafeAreaView,
+    View,
+    Text,
+    Image,
+    TouchableOpacity,
+    ScrollView,
+    StyleSheet,
+    StatusBar,
+    Alert,
+    Modal,
+    ActivityIndicator,
+} from 'react-native';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.EXPO_PUBLIC_AI_API_KEY
-});
+// --- Meal-time logic -------------------------------------------------------
 
-const fridgeImage = require("@/assets/Recipe_Images/fridge.jpg");
+const MEAL_TIMES = [
+    { label: 'Breakfast', icon: 'sunny-outline', hour: 8 },
+    { label: 'Lunch', icon: 'partly-sunny-outline', hour: 12 },
+    { label: 'Dinner', icon: 'moon-outline', hour: 18 },
+];
 
-const callAi = async () => {
-  const asset = Asset.fromModule(fridgeImage);
+function getClosestMeal(hour: number) {
+    let closest = MEAL_TIMES[0];
+    let minDistance = Infinity;
 
-  await asset.downloadAsync();
+    MEAL_TIMES.forEach((meal) => {
+        const rawDiff = Math.abs(hour - meal.hour);
+        const circularDiff = Math.min(rawDiff, 24 - rawDiff);
 
-  const response = await fetch(asset.localUri!);
-  const blob = await response.blob();
+        if (circularDiff < minDistance) {
+            minDistance = circularDiff;
+            closest = meal;
+        }
+    });
 
-  const base64 = await new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
+    return closest;
+}
 
-    reader.onloadend = () => {
-      const result = reader.result as string;
+// --- Real-world time, selectable timezone -----------------------------------
 
-      // Remove "data:image/jpeg;base64," from the beginning
-      const base64Data = result.split(",")[1];
+const TIME_ZONES = [
+    { label: 'Eastern Time', zone: 'America/New_York' },
+    { label: 'Central Time', zone: 'America/Chicago' },
+    { label: 'Mountain Time', zone: 'America/Denver' },
+    { label: 'Pacific Time', zone: 'America/Los_Angeles' },
+    { label: 'Alaska Time', zone: 'America/Anchorage' },
+    { label: 'Hawaii Time', zone: 'Pacific/Honolulu' },
+];
 
-      resolve(base64Data);
+function makeHourFormatter(zone: string) {
+    return new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: 'numeric',
+        hourCycle: 'h23',
+    });
+}
+
+function makeClockDisplayFormatter(zone: string) {
+    return new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    });
+}
+
+// ----------------------------------------------------------------------------
+
+export function HomeScreen() {
+
+    // ------------------------------------------------------------------------
+    // TIME / TIMEZONE
+    // ------------------------------------------------------------------------
+
+    const [now, setNow] = useState(new Date());
+
+    const [selectedZoneIndex, setSelectedZoneIndex] = useState(0);
+    const [zonePickerVisible, setZonePickerVisible] = useState(false);
+
+    const selectedZone = TIME_ZONES[selectedZoneIndex];
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setNow(new Date());
+        }, 1000);
+
+        return () => clearInterval(intervalId);
+    }, []);
+
+    const hourFormatter = useMemo(
+        () => makeHourFormatter(selectedZone.zone),
+        [selectedZone.zone]
+    );
+
+    const clockDisplayFormatter = useMemo(
+        () => makeClockDisplayFormatter(selectedZone.zone),
+        [selectedZone.zone]
+    );
+
+    const currentHour = parseInt(hourFormatter.format(now), 10);
+    const closestMeal = getClosestMeal(currentHour);
+
+    type Ingredient = {
+        name: string;
+        confidence: 'high' | 'medium' | 'low';
     };
 
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+    const [capturedPhoto, setCapturedPhoto] =
+        useState<string | null>(null);
 
-  const aiResponse = await ai.models.generateContent({
-    model: "gemini-3.6-flash",
-    contents: [
-      {
-        role: "user",
-        parts: [
-          {
-            text: "Look inside this fridge and suggest 5 recipes I can make.",
-          },
-          {
-            inlineData: {
-              mimeType: "image/jpeg",
-              data: base64,
-            },
-          },
-        ],
-      },
-    ],
-  });
+    const [analyzing, setAnalyzing] =
+        useState<boolean>(false);
 
-  return aiResponse;
-};
+    const [ingredients, setIngredients] =
+        useState<Ingredient[]>([]);
 
+    // CONVERT IMAGE URI TO BASE64
+    const imageUriToBase64 = async (imageUri: string | URL | Request) => {
+        const response = await fetch(imageUri);
 
-const allergies = [
-  {
-    name: "Peanuts",
-    image: require('@/assets/settingsIcons/peanuts.png'),
-  },
-  {
-    name: "Tree Nuts",
-    image: require('@/assets/settingsIcons/treeNuts.png'),
-  },
-  {
-    name: "Milk",
-    image: require('@/assets/settingsIcons/milk.png'),
-  },
-  {
-    name: "Eggs",
-    image: require('@/assets/settingsIcons/eggs.png'),
-  },
-  {
-    name: "Shellfish",
-    image: require('@/assets/settingsIcons/shellfish.png'),
-  },
-  {
-    name: "Wheat",
-    image: require('@/assets/settingsIcons/wheat.png'),
-  },
-  {
-    name: "Soy",
-    image: require('@/assets/settingsIcons/soy.png'),
-  },
-  {
-    name: "Fish",
-    image: require('@/assets/settingsIcons/fish.png'),
-  },
-  {
-    name: "Sesame",
-    image: require('@/assets/settingsIcons/sesame.png'),
-  },
-  {
-    name: "Gluten",
-    image: require('@/assets/settingsIcons/gluten.png'),
-  },
-];
-
-const dietRestrictions = [
-  "Vegetarian",
-  "Vegan",
-  "Keto",
-  "Mediterranean",
-];
-
-const macroAmounts = [
-  "Low",
-  "Moderate",
-  "High",
-];
-
-const SaveButton = () => {
-  const [selectedAllergies, setSelectedAllergies] = useState<string[]>([]);
-  const [selectedDiet, setSelectedDiet] = useState<string | null>(null);
-  const [selectedMacros1, setSelectedMacros1] = useState<string | null>(null);
-  const [selectedMacros2, setSelectedMacros2] = useState<string | null>(null);
-  const [selectedMacros3, setSelectedMacros3] = useState<string | null>(null);
-  const [calorieGoal, setCalorieGoal] = useState(2000);
-  const [saved, setSaved] = useState(false);  
-
-  useEffect(() => {
-    const loadSettings = async () => {
-      try {
-        const savedSettings = await AsyncStorage.getItem("userSettings");
-        if (savedSettings) {
-          const settings = JSON.parse(savedSettings);
-            setSelectedAllergies(settings.allergies || []);
-            setSelectedDiet(settings.dietaryRestriction || null);
-            setSelectedMacros1(settings.protein || null);
-            setSelectedMacros2(settings.sugar || null);
-            setSelectedMacros3(settings.carbs || null);
-            setCalorieGoal(settings.calorieGoal || 2000);
-          }
-          } catch (error) {
-            console.log("LOAD FAILED:", error);
-          }
-        };
-
-        loadSettings();
-      }, []);
-
-  const toggleAllergy = (allergy: string) => {
-    if (selectedAllergies.includes(allergy)) {
-      setSelectedAllergies(
-        selectedAllergies.filter((item) => item !== allergy)
-      );
-    } else {
-      setSelectedAllergies([...selectedAllergies, allergy]);
-    }
-  };
-
-  return (
-    <ScrollView
-      contentContainerStyle={styles.container}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.heading}>Allergies & Intolerances</Text>
-      <Text style={styles.description}>Select all that apply</Text>
-      <View style={styles.pillContainer}>
-        {allergies.map((item) => (
-          <Pressable
-            key={item.name}
-            onPress={() => toggleAllergy(item.name)}
-            style={[
-              styles.pill,
-              selectedAllergies.includes(item.name) && styles.selectedPill,
-            ]}
-          >
-            <Image
-              source={item.image}
-              style={styles.icon}
-            />
-            <Text
-              style={[
-                styles.pillText,
-                selectedAllergies.includes(item.name) &&
-                  styles.selectedPillText,
-              ]}
-            >
-              {item.name}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.heading}>Dietary Restrictions</Text>
-      <Text style={styles.description}>Select one</Text>
-      <View style={styles.segmentContainer}>
-        {dietRestrictions.map((item, index) => (
-          <Pressable
-            key={item}
-            onPress={() => setSelectedDiet(item)}
-            style={[
-              styles.segment,
-              index === dietRestrictions.length - 1 && {
-                borderRightWidth: 0,
-            },
-              selectedDiet === item && styles.selectedSegment,
-            ]}
-          >
-            <Text
-              style={[
-                styles.pillText,
-                selectedDiet === item && styles.selectedPillText,
-              ]}
-            >
-              {item}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      
-      <Text style={styles.heading}>Nutrition Goals</Text>
-      <Text style={styles.description}>Protein Intake</Text>
-      <View style={styles.segmentContainer}>
-        {macroAmounts.map((item, index) => (
-          <Pressable
-            key={item}
-            onPress={() => setSelectedMacros1(item)}
-            style={[
-              styles.segment,
-              index === macroAmounts.length - 1 && {
-                borderRightWidth: 0,
-            },
-              selectedMacros1 === item && styles.selectedSegment,
-            ]}
-          >
-            <Text
-              style={[
-                styles.pillText,
-                selectedMacros1 === item && styles.selectedPillText,
-              ]}
-            >
-              {item}
-            </Text>
-          </Pressable>
-        ))}
-
-      </View>
-      
-      <Text style={styles.description}>Sugar Intake</Text>
-      <View style={styles.segmentContainer}>
-        {macroAmounts.map((item, index) => (
-          <Pressable
-            key={item}
-            onPress={() => setSelectedMacros2(item)}
-            style={[
-              styles.segment,
-              index === macroAmounts.length - 1 && {
-                borderRightWidth: 0,
-            },
-              selectedMacros2 === item && styles.selectedSegment,
-            ]}
-          >
-            <Text
-              style={[
-                styles.pillText,
-                selectedMacros2 === item && styles.selectedPillText,
-              ]}
-            >
-              {item}
-            </Text>
-          </Pressable>
-        ))}
-
-      </View>
-
-      <Text style={styles.description}>Carbs Intake</Text>
-      <View style={styles.segmentContainer}>
-        {macroAmounts.map((item, index) => (
-          <Pressable
-            key={item}
-            onPress={() => setSelectedMacros3(item)}
-            style={[
-              styles.segment,
-              index === macroAmounts.length - 1 && {
-                borderRightWidth: 0,
-            },
-              selectedMacros3 === item && styles.selectedSegment,
-            ]}
-          >
-            <Text
-              style={[
-                styles.pillText,
-                selectedMacros3 === item && styles.selectedPillText,
-              ]}
-            >
-              {item}
-            </Text>
-          </Pressable>
-        ))}
-
-      </View>
-
-      <Text style={styles.description}>Calorie Goal</Text>
-      <View style={styles.stepperContainer}>
-        <Pressable
-          style={styles.stepperButton}
-          onPress={() => {
-            if (calorieGoal > 0) {
-              setCalorieGoal(calorieGoal - 10);
-            }
-          }}
-        >
-        <Text style={styles.stepperButtonText}>-</Text>
-        </Pressable>
-
-        <TextInput
-          style={styles.stepperInput}
-          keyboardType="numeric"
-          value={calorieGoal.toString()}
-          onChangeText={(text) => {
-            const value = parseInt(text);
-            setCalorieGoal(isNaN(value) ? 0 : value);
-          }}
-        />
-        <Text style={styles.kcalText}>kcal</Text>
-
-        <Pressable
-          style={styles.stepperButton}
-          onPress={() => setCalorieGoal(calorieGoal + 10)}
-        >
-        <Text style={styles.stepperButtonText}>+</Text>
-        </Pressable>
-      </View>
-      
-      {/* Save Button */}
-      <View style={{ marginTop: 20 }}>
-      <Pressable
-        style={[
-        styles.saveButton,
-        saved && styles.savedButton,
-        ]}
-      // async = lets stuff run in the background  
-      onPress={async () => {
-      try {
-        const settings = {
-          allergies: selectedAllergies,
-          dietaryRestriction: selectedDiet,
-          protein: selectedMacros1,
-          sugar: selectedMacros2,
-          carbs: selectedMacros3,
-          calorieGoal: calorieGoal,
-        };
-
-        await AsyncStorage.setItem(
-          "userSettings",
-          JSON.stringify(settings)
-        );
-
-        setSaved(true);
-
-        Alert.alert(
-          "Saved!",
-          "Your preferences have been saved."
-        );
-
-        setTimeout(() => setSaved(false), 5000);
-      } 
-      catch (error) {
-        console.log("SAVE FAILED:", error);
-
-        Alert.alert(
-          "Error",
-          "There was a problem saving your preferences, please try again."
-        );
-      }
-    }}
-  >
-    <Text style={styles.saveButtonText}>
-      {saved ? "Saved!" : "Save"}
-    </Text>
-  </Pressable>
-
-        {/*API Key Test Button*/}
-        <Pressable onPress={async () => {
-          try {
-            console.log("CALLING AI...");
-
-            const response = await callAi();
-
-            console.log("RESPONSE TEXT:", response.text);
-
-            Alert.alert(
-              "AI Response",
-              response.text || "No response received."
-            );
-
-          } catch (error) {
-            console.log("AI CALL FAILED!");
-            console.log(error);
-
-            Alert.alert(
-              "AI Error",
-              error instanceof Error ? error.message : String(error)
-            );
-         }}
+        if (!response.ok) {
+            throw new Error('Could not read the captured image.');
         }
-        >
-          <Text>API Key Test</Text>
-        </Pressable>
-      </View>
-    </ScrollView>
+
+        const blob = await response.blob();
+
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onloadend = () => {
+                try {
+                    const result = reader.result;
+
+                    if (typeof result !== 'string') {
+                        reject(
+                            new Error(
+                                'Could not convert image to base64.'
+                            )
+                        );
+                        return;
+                    }
+
+                    const base64Data = result.split(',')[1];
+
+                    if (!base64Data) {
+                        reject(
+                            new Error(
+                                'Invalid base64 image data.'
+                            )
+                        );
+                        return;
+                    }
+
+                    resolve(base64Data);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+
+            reader.onerror = () => {
+                reject(new Error('Failed to read image.'));
+            };
+
+            reader.readAsDataURL(blob);
+        });
+    };
+
+    // ------------------------------------------------------------------------
+    // SEND PHOTO TO GEMINI
+    // ------------------------------------------------------------------------
+
+    const analyzeFridgePhoto = async (imageUri: string) => {
+        try {
+            setAnalyzing(true);
+
+            // Clear previous ingredients while analyzing the new photo.
+            setIngredients([]);
+
+            // Get the API key from Expo's environment variables.
+            const GEMINI_API_KEY =
+                process.env.EXPO_PUBLIC_GEMINI_API_KEY;
+
+            if (!GEMINI_API_KEY) {
+                throw new Error(
+                    'Gemini API key is missing. Check your .env file.'
+                );
+            }
+
+            // Convert the photo to base64.
+            const base64Image = await imageUriToBase64(imageUri);
+
+            // Call Gemini directly.
+const geminiResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+        method: 'POST',
+
+        headers: {
+            'Content-Type': 'application/json',
+        },
+
+        body: JSON.stringify({
+            contents: [
+                {
+                    parts: [
+                        {
+                            inlineData: {
+                                mimeType: 'image/jpeg',
+                                data: base64Image,
+                            },
+                        },
+                        {
+                            text: `
+You are analyzing a photo of a refrigerator for a cooking app called PickToPlate.
+
+Identify the food ingredients that are clearly visible in the refrigerator.
+
+Return ONLY valid JSON.
+
+Use exactly this format:
+
+{
+  "ingredients": [
+    {
+      "name": "eggs",
+      "confidence": "high"
+    }
+  ]
+}
+
+Rules:
+- Only include food ingredients that are actually visible.
+- Do not invent ingredients.
+- Do not include non-food objects.
+- If you see a container but cannot determine what is inside, do not guess.
+- Use simple ingredient names.
+- Confidence must be exactly one of:
+  "high", "medium", or "low".
+- If an ingredient is uncertain, use "low".
+- Do not include markdown.
+- Do not include \`\`\`json.
+- Return only the JSON object.
+                            `,
+                        },
+                    ],
+                },
+            ],
+        }),
+    }
+);
+
+if (!geminiResponse.ok) {
+    const errorText = await geminiResponse.text();
+
+    console.error('Gemini API error:', errorText);
+
+    throw new Error(
+        `Gemini Request failed (${geminiResponse.status}).`
     );
-  };
+}
+
+const geminiData = await geminiResponse.json();
+
+console.log('Full Gemini response:', geminiData);
+
+const text =
+    geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+if (!text) {
+    throw new Error('Gemini returned an empty response.');
+}
+
+console.log('Gemini text:', text);
+
+const cleanedText = text
+    .replace(/```json/gi, '')
+    .replace(/```/g, '')
+    .trim();
+
+
+            // Convert Gemini's JSON string into an actual JavaScript object.
+            const parsed = JSON.parse(cleanedText);
+
+            if (!Array.isArray(parsed.ingredients)) {
+                throw new Error(
+                    'Gemini returned an invalid ingredients list.'
+                );
+            }
+
+            // Save ingredients to React state.
+            setIngredients(parsed.ingredients);
+
+        } catch (error) {
+            console.error('Fridge analysis error:', error);
+
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : 'Something went wrong while analyzing your fridge photo.';
+
+            Alert.alert(
+                'Analysis failed',
+                errorMessage
+            );
+            } finally {
+                setAnalyzing(false);
+            }
+        };
+
+    // ------------------------------------------------------------------------
+    // TAKE PHOTO
+    // ------------------------------------------------------------------------
+
+    const handleTakePhoto = async () => {
+        const { status } =
+            await ImagePicker.requestCameraPermissionsAsync();
+
+        if (status !== 'granted') {
+            Alert.alert(
+                'Camera permission needed',
+                'PickToPlate needs camera access to scan your fridge.'
+            );
+
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            const photoUri = result.assets[0].uri;
+
+            // Show the photo immediately.
+            setCapturedPhoto(photoUri);
+
+            // Analyze THIS photo directly.
+            //
+            // We don't use capturedPhoto here because React state updates
+            // asynchronously.
+            analyzeFridgePhoto(photoUri);
+        }
+    };
+
+    // ------------------------------------------------------------------------
+    // UI
+    // ------------------------------------------------------------------------
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <StatusBar barStyle="dark-content" />
+
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>
+                    PickToPlate
+                </Text>
+            </View>
+
+            {/* Live clock */}
+            <View style={styles.clockRow}>
+                <Ionicons
+                    name="time-outline"
+                    size={14}
+                    color="#5C8A66"
+                />
+
+                <Text style={styles.clockLabel}>
+                    {selectedZone.label}:
+                </Text>
+
+                <Text style={styles.clockValue}>
+                    {clockDisplayFormatter.format(now)}
+                </Text>
+
+                <TouchableOpacity
+                    onPress={() => setZonePickerVisible(true)}
+                    hitSlop={{
+                        top: 8,
+                        bottom: 8,
+                        left: 8,
+                        right: 8,
+                    }}
+                    style={styles.zoneDropdownButton}
+                >
+                    <Ionicons
+                        name="caret-down"
+                        size={12}
+                        color="#5C8A66"
+                    />
+                </TouchableOpacity>
+            </View>
+
+            {/* Timezone picker */}
+            <Modal
+                visible={zonePickerVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() =>
+                    setZonePickerVisible(false)
+                }
+            >
+                <TouchableOpacity
+                    style={styles.zoneModalBackdrop}
+                    activeOpacity={1}
+                    onPress={() =>
+                        setZonePickerVisible(false)
+                    }
+                >
+                    <View style={styles.zoneDropdownCard}>
+                        {TIME_ZONES.map((zone, index) => {
+                            const isSelected =
+                                index === selectedZoneIndex;
+
+                            return (
+                                <TouchableOpacity
+                                    key={zone.zone}
+                                    style={styles.zoneOptionRow}
+                                    onPress={() => {
+                                        setSelectedZoneIndex(index);
+                                        setZonePickerVisible(false);
+                                    }}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.zoneOptionText,
+                                            isSelected &&
+                                                styles.zoneOptionTextSelected,
+                                        ]}
+                                    >
+                                        {zone.label}
+                                    </Text>
+
+                                    {isSelected && (
+                                        <Ionicons
+                                            name="checkmark"
+                                            size={16}
+                                            color="#3F6647"
+                                        />
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            <ScrollView
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
+                <Text style={styles.title}>
+                    Snap Your Fridge
+                </Text>
+
+                {/* CAMERA BUTTON */}
+                <TouchableOpacity
+                    style={[
+                        styles.cameraButton,
+                        analyzing && styles.cameraButtonDisabled,
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={handleTakePhoto}
+                    disabled={analyzing}
+                >
+                    <View style={styles.cameraIconCircle}>
+                        <Ionicons
+                            name="camera-outline"
+                            size={40}
+                            color="#5C8A66"
+                        />
+                    </View>
+
+                    <Text style={styles.cameraButtonText}>
+                        {analyzing
+                            ? 'Analyzing...'
+                            : 'Take Photo'}
+                    </Text>
+                </TouchableOpacity>
+
+                {/* PHOTO PREVIEW */}
+                {capturedPhoto && (
+                    <Image
+                        source={{ uri: capturedPhoto }}
+                        style={styles.previewImage}
+                    />
+                )}
+
+                {/* GEMINI LOADING STATE */}
+                {analyzing && (
+                    <View style={styles.analyzingContainer}>
+                        <ActivityIndicator
+                            size="small"
+                            color="#3F6647"
+                        />
+
+                        <Text style={styles.analyzingText}>
+                            Analyzing your fridge...
+                        </Text>
+                    </View>
+                )}
+
+                {/* INGREDIENT RESULTS */}
+                {ingredients.length > 0 && !analyzing && (
+                    <View style={styles.ingredientsContainer}>
+                        <Text style={styles.ingredientsTitle}>
+                            Ingredients Found
+                        </Text>
+
+                        {ingredients.map(
+                            (ingredient, index) => (
+                                <View
+                                    key={`${ingredient.name}-${index}`}
+                                    style={styles.ingredientRow}
+                                >
+                                    <View style={styles.ingredientLeft}>
+                                        <View
+                                            style={
+                                                styles.ingredientBullet
+                                            }
+                                        />
+
+                                        <Text
+                                            style={
+                                                styles.ingredientName
+                                            }
+                                        >
+                                            {ingredient.name}
+                                        </Text>
+                                    </View>
+
+                                    <Text
+                                        style={
+                                            styles.ingredientConfidence
+                                        }
+                                    >
+                                        {ingredient.confidence}
+                                    </Text>
+                                </View>
+                            )
+                        )}
+                    </View>
+                )}
+
+                {/* MEAL BADGE */}
+                <View style={styles.mealBadge}>
+                    <MaterialCommunityIcons
+                        name={
+                            closestMeal.icon ===
+                            'sunny-outline'
+                                ? 'weather-sunny'
+                                : closestMeal.icon ===
+                                  'moon-outline'
+                                ? 'weather-night'
+                                : 'weather-partly-cloudy'
+                        }
+                        size={20}
+                        color="#3F6647"
+                    />
+
+                    <Text style={styles.mealBadgeText}>
+                        {closestMeal.label}
+                    </Text>
+                </View>
+
+                <Text style={styles.caption}>
+                    Analyze your ingredients in seconds
+                </Text>
+            </ScrollView>
+        </SafeAreaView>
+    );
+}
+
+// ----------------------------------------------------------------------------
+// STYLES
+// ----------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-  },
+    safeArea: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
 
-  icon: {
-    width: 32,
-    height: 32,
-    resizeMode: "contain",
-    marginBottom: 8,
-  },
+    header: {
+        backgroundColor: '#EAF3EA',
+        paddingVertical: 16,
+        alignItems: 'center',
+    },
 
-  heading: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 10,
-    marginTop: 15,
-  },
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#3F6647',
+    },
 
-  description: {
-    fontSize: 14,
-    marginBottom: 10,
-  },
+    clockRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: 8,
+        backgroundColor: '#F3F6F2',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E9E3',
+    },
 
-  pillContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 15,
-  },
+    clockLabel: {
+        fontSize: 11,
+        color: '#5F6B5F',
+        fontWeight: '600',
+    },
 
-  pill: {
-    width: 100,
-    height: 100,
-    backgroundColor: "white",
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    margin: 8,
-  },
+    clockValue: {
+        fontSize: 12,
+        color: '#3F6647',
+        fontWeight: '700',
+    },
 
-  selectedPill: {
-    backgroundColor: "green",
-  },
+    zoneDropdownButton: {
+        marginLeft: 2,
+        padding: 2,
+    },
 
-  pillText: {
-    color: "#333",
-    fontSize: 15,
-    fontWeight: "500",
-    textAlign: "center",
-  },
+    zoneModalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(20, 30, 20, 0.25)',
+        alignItems: 'center',
+        paddingTop: 90,
+    },
 
-  selectedPillText: {
-    color: "white",
-    fontWeight: "600",
-  },
+    zoneDropdownCard: {
+        width: 220,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        paddingVertical: 6,
 
-  segmentContainer: {
-    flexDirection: "row",
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 12,
-    overflow: "hidden",
-    marginBottom: 20,
-  },
+        // If boxShadow causes issues on your Expo version,
+        // you can remove this property.
+        boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.15)',
+    },
 
-  segment: {
-    flex: 1,
-    paddingVertical: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "white",
-    borderRightWidth: 1,
-    borderRightColor: "#ccc",
-  },  
+    zoneOptionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 11,
+        paddingHorizontal: 16,
+    },
 
-  selectedSegment: {
-    backgroundColor: "green",
-  },
+    zoneOptionText: {
+        fontSize: 14,
+        color: '#22331F',
+    },
 
-  stepperContainer: {
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "space-between",
-  backgroundColor: "white",
-  borderRadius: 12,
-  paddingHorizontal: 15,
-  paddingVertical: 10,
-  marginBottom: 25,
-},
+    zoneOptionTextSelected: {
+        fontWeight: '700',
+        color: '#3F6647',
+    },
 
-stepperButton: {
-  width: 40,
-  height: 40,
-  borderRadius: 20,
-  backgroundColor: "#f0f0f0",
-  justifyContent: "center",
-  alignItems: "center",
-},
+    content: {
+        width: '100%',
+        maxWidth: 480,
+        alignSelf: 'center',
+        paddingHorizontal: 24,
+        alignItems: 'center',
+        paddingTop: 28,
+        paddingBottom: 40,
+    },
 
-stepperButtonText: {
-  fontSize: 26,
-  fontWeight: "600",
-},
+    title: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#22331F',
+        marginBottom: 24,
+    },
 
-stepperInput: {
-  flex: 1,
-  textAlign: "center",
-  fontSize: 20,
-  fontWeight: "600",
-},
+    cameraButton: {
+        width: '100%',
+        aspectRatio: 1.6,
+        maxHeight: 260,
+        backgroundColor: '#6FA377',
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 
-kcalText: {
-  fontSize: 18,
-  fontWeight: "500",
-  marginRight: 12,
-},
+    cameraButtonDisabled: {
+        opacity: 0.7,
+    },
 
-  saveButton: {
-  backgroundColor: "green",
-  paddingVertical: 14,
-  borderRadius: 10,
-  alignItems: "center",
-},
+    cameraIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
 
-savedButton: {
-  backgroundColor: "#d3d3d3",
-},
+    cameraButtonText: {
+        color: '#FFFFFF',
+        fontSize: 17,
+        fontWeight: '600',
+    },
 
-saveButtonText: {
-  color: "white",
-  fontSize: 16,
-  fontWeight: "600",
-},
+    previewImage: {
+        width: '100%',
+        aspectRatio: 1.6,
+        maxHeight: 260,
+        borderRadius: 16,
+        marginTop: 16,
+        backgroundColor: '#E5E5E5',
+    },
 
+    // ------------------------------------------------------------------------
+    // GEMINI UI
+    // ------------------------------------------------------------------------
+
+    analyzingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 18,
+        gap: 10,
+    },
+
+    analyzingText: {
+        fontSize: 15,
+        color: '#5C8A66',
+        fontWeight: '600',
+    },
+
+    ingredientsContainer: {
+        width: '100%',
+        marginTop: 20,
+        backgroundColor: '#EAF3EA',
+        borderRadius: 16,
+        padding: 18,
+    },
+
+    ingredientsTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginBottom: 8,
+    },
+
+    ingredientRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 11,
+        borderBottomWidth: 1,
+        borderBottomColor: '#D5E3D5',
+    },
+
+    ingredientLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+
+    ingredientBullet: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: '#6FA377',
+        marginRight: 10,
+    },
+
+    ingredientName: {
+        fontSize: 16,
+        color: '#22331F',
+        fontWeight: '500',
+        textTransform: 'capitalize',
+    },
+
+    ingredientConfidence: {
+        fontSize: 12,
+        color: '#5C8A66',
+        fontWeight: '600',
+        textTransform: 'capitalize',
+    },
+
+    mealBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 20,
+        backgroundColor: '#EAF3EA',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 16,
+    },
+
+    mealBadgeText: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#3F6647',
+    },
+
+    caption: {
+        marginTop: 50,
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#3F6647',
+        textAlign: 'center',
+        backgroundColor: '#EAF3EA',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
 });
 
-export default SaveButton

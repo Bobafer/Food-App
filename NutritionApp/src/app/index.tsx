@@ -6,6 +6,7 @@ import {NavBar} from './NavBar'
 import {InventoryScreen} from './inventory'
 import {HomeScreen} from './home'
 import {Instructions} from './instructions'
+import SaveButton from "./Settings";
 
 export default function Index() {
   return (
@@ -16,9 +17,10 @@ export default function Index() {
           even on a wide laptop browser. NavBar renders inside it, so this
           constrains the header, content, AND the bottom tab bar together. */}
       <View style={styles.phoneFrame}>
-        {/* <Recipe></Recipe>
-        <NavBar></NavBar> */}
-        <InventoryScreen></InventoryScreen>
+        {/* <Recipe></Recipe> */}
+        <NavBar></NavBar>
+        {/* <HomeScreen></HomeScreen> */}
+        {/* <InventoryScreen></InventoryScreen> */}
       </View>
     </View>
   );
