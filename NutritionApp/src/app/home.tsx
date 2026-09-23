@@ -14,6 +14,20 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { useNavigation } from '@react-navigation/native';
+import pizza from '@/assets/Recipe_Images/pizza.jpg';
+
+// --- Recommended recipe -----------------------------------------------------
+// Hardcoded for now (matches the one recipe that currently exists in the
+// Recipes tab). Once real AI-driven recommendations exist, this is the one
+// place to swap out — replace this constant with whatever recipe the model
+// picks (name/description/image), and everything below keeps working as-is.
+const RECOMMENDED_RECIPE = {
+    name: 'Pizza',
+    description: 'Italian bread with sauce',
+    image: pizza,
+};
+// ----------------------------------------------------------------------------
 
 const MEAL_TIMES = [
     { label: 'Breakfast', icon: 'sunny-outline', hour: 8 },
