@@ -13,20 +13,6 @@ import {
 } from 'react-native';
 import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
-import pizza from '@/assets/Recipe_Images/pizza.jpg';
-
-// --- Recommended recipe -----------------------------------------------------
-// Hardcoded for now (matches the one recipe that currently exists in the
-// Recipes tab). Once real AI-driven recommendations exist, this is the one
-// place to swap out — replace this constant with whatever recipe the model
-// picks (name/description/image), and everything below keeps working as-is.
-const RECOMMENDED_RECIPE = {
-    name: 'Pizza',
-    description: 'Italian bread with sauce',
-    image: pizza,
-};
-// ----------------------------------------------------------------------------
 
 // --- Meal-time logic -------------------------------------------------------
 // Each meal has a representative hour (24hr clock). To find the "closest"
@@ -101,16 +87,6 @@ export function HomeScreen(){
     // it (and, later, hand it off to whatever does the fridge analysis).
     const [capturedPhoto, setCapturedPhoto] = useState(null);
 
-    // FIXED: navigation.navigate() was coming back undefined because
-    // useNavigation() was being imported from 'expo-router' elsewhere in
-    // the app. HomeScreen isn't actually mounted inside Expo Router's own
-    // navigation tree — NavBar.tsx builds a separate, independent
-    // @react-navigation/native tree (see the `independent` comment there),
-    // and Home lives inside THAT one. Importing useNavigation from
-    // '@react-navigation/native' (same library NavBar.tsx itself uses)
-    // gives us the right navigation object.
-    const navigation = useNavigation<any>();
-
     // ...and ticks forward every second, so the displayed time and the
     // meal badge both stay accurate without needing a refresh.
     useEffect(() => {
@@ -153,18 +129,6 @@ export function HomeScreen(){
             // TODO: this is where you'd kick off fridge-photo analysis,
             // e.g. uploading capturedPhoto to your backend/model.
         }
-    };
-
-    // Real navigation: jump to the Recipes tab and open its "Recipes" screen
-    // with a param telling Recipe to auto-expand straight to Instructions.
-    // "RecipesStack" isn't a screen inside HomeStack, so this action bubbles
-    // up to the parent tab navigator (MyTabs), which switches tabs for us —
-    // that's also why the tab bar now correctly highlights "Recipes".
-    const handleOpenRecommendedRecipe = () => {
-        navigation.navigate('RecipesStack', {
-            screen: 'Recipes',
-            params: { autoOpenInstructions: true },
-        });
     };
 
     return(
@@ -260,24 +224,7 @@ export function HomeScreen(){
                   <Text style={styles.mealBadgeText}>{closestMeal.label}</Text>
               </View>
 
-              {/* Recommended recipe — replaces the old "Analyze your
-                  ingredients in seconds" caption. Tapping it navigates to the
-                  Recipes tab. Currently always the pizza recipe
-                  (RECOMMENDED_RECIPE above); once AI recommendations exist,
-                  that constant is the only thing that needs to change. */}
-              <Text style={styles.recommendedLabel}>Recommended Recipe</Text>
-              <TouchableOpacity
-                  style={styles.recommendedCard}
-                  activeOpacity={0.85}
-                  onPress={handleOpenRecommendedRecipe}
-              >
-                  <Image source={RECOMMENDED_RECIPE.image} style={styles.recommendedImage} />
-                  <View style={styles.recommendedTextWrap}>
-                      <Text style={styles.recommendedTitle}>{RECOMMENDED_RECIPE.name}</Text>
-                      <Text style={styles.recommendedDescription}>{RECOMMENDED_RECIPE.description}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#9AA39C" />
-              </TouchableOpacity>
+              <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
           </ScrollView>
 
             {/* The bottom tab bar used to be faked here with a static row of
@@ -300,11 +247,6 @@ const styles = StyleSheet.create({
         backgroundColor:'#EAF3EA',
         paddingVertical: 16,
         alignItems: 'center',
-    },
-    recipeBackButton: {
-        position: 'absolute',
-        left: 16,
-        top: 16,
     },
   headerTitle: {
     fontSize: 20,
@@ -424,42 +366,16 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#3F6647',
   },
-  recommendedLabel: {
-    width: '100%',
-    marginTop: 24,
-    marginBottom: 8,
-    fontSize: 11,
+  caption: {
+    marginTop: 50,
+    fontSize: 20,
     fontWeight: '600',
-    color: '#9AA39C',
-    textTransform: 'uppercase',
-    letterSpacing: 0.4,
-  },
-  recommendedCard: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3F6F2',
+    color: '#3F6647',
+    textAlign: 'center',
+    backgroundColor: '#EAF3EA',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
     borderRadius: 16,
-    padding: 10,
-    gap: 12,
-  },
-  recommendedImage: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#E5E5E5',
-  },
-  recommendedTextWrap: {
-    flex: 1,
-  },
-  recommendedTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#22331F',
-  },
-  recommendedDescription: {
-    fontSize: 12,
-    color: '#5F6B5F',
-    marginTop: 2,
+    overflow: 'hidden',
   },
 });

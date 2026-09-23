@@ -1,12 +1,9 @@
 import {View, Text,  StyleSheet, Button,TouchableOpacity} from 'react-native';
 import React, { useState } from 'react';
 import { Instructions } from './instructions';
-// ADDED: autoOpenInstructions prop — when true, this starts already showing
-// Instructions instead of the Portion Sizes macros. Passed down from Recipe,
-// which only sets it when opened via Home's "Recommended Recipe" card.
-export const Portion = ({ autoOpenInstructions = false }) => {
+export const Portion = () => {
 
-    const [showInstructions, setShowInstructions] = useState(autoOpenInstructions);
+    const [showInstructions, setShowInstructions] = useState(false);
 
     return(
         <View style={styles.container}>

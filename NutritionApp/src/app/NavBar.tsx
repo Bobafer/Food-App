@@ -207,10 +207,5 @@ const MyTabs = createBottomTabNavigator({
 const Navigation = createStaticNavigation(MyTabs);
 
 export const NavBar = () => {
-  // "independent" tells React Navigation this container is deliberately
-  // nested inside another one (expo-router wraps every route in its own
-  // NavigationContainer automatically) — without this flag, the two
-  // containers fight over context, and screens deep in this tree (like
-  // HomeScreen) end up with a broken/undefined `navigation` prop.
-  return <Navigation independent />;
+  return <Navigation />;
 };
