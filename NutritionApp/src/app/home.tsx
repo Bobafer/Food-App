@@ -223,7 +223,7 @@ const geminiResponse = await fetch(
                         },
                         {
                             text: `
-                                You are analyzing a photo of a refrigerator for a cooking app called PickToPlate.
+                                You are analyzing a photo of a refrigerator for a cooking app called ClicktoCook.
 
                                 Identify the food ingredients that are clearly visible in the refrigerator.
 
@@ -262,10 +262,10 @@ const geminiResponse = await fetch(
     }
 );
 
-const geminiData = await geminiResponse.json();
+const ingredientData = await geminiResponse.json();
 
 const ingredientText =
-    geminiData.candidates[0].content.parts[0].text;
+    ingredientData.candidates[0].content.parts[0].text;
 
 // Remove markdown code fences if Gemini happens to include them
 const cleanedIngredientText = ingredientText
@@ -273,9 +273,9 @@ const cleanedIngredientText = ingredientText
     .replace(/```/g, '')
     .trim();
 
-const ingredientData = JSON.parse(cleanedIngredientText);
+const cleanIngredientData = JSON.parse(cleanedIngredientText);
 
-const detectedIngredients = ingredientData.ingredients;
+const detectedIngredients = cleanIngredientData.ingredients;
 
 // CALL 2: Generate recipes
 const recipeResponse = await fetch(
@@ -293,7 +293,7 @@ const recipeResponse = await fetch(
                     parts: [
                         {
                             text: `
-                                You are generating recipes for a cooking app called PickToPlate.
+                                You are generating recipes for a cooking app called ClicktoCook.
 
                                 The ingredients detected in the user's refrigerator are:
 
@@ -427,7 +427,7 @@ const recipes = recipeResults.recipes;
         if (status !== 'granted') {
             Alert.alert(
                 'Camera permission needed',
-                'PickToPlate needs camera access to scan your fridge.'
+                'ClicktoCook needs camera access to scan your fridge.'
             );
 
             return;
@@ -458,7 +458,7 @@ const recipes = recipeResults.recipes;
 
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>
-                    PickToPlate
+                    ClicktoCook
                 </Text>
             </View>
 

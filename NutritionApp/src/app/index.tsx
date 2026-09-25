@@ -6,17 +6,15 @@ import {NavBar} from './NavBar'
 import {InventoryScreen} from './inventory'
 import {HomeScreen} from './home'
 import {Instructions} from './instructions'
-import SaveButton from "./Settings";
 
 export default function Index() {
   return (
     <View style={styles.outer}>
 
       <View style={styles.phoneFrame}>
-        {/* <Recipe></Recipe> */}
-        <NavBar></NavBar>
-        {/* <HomeScreen></HomeScreen> */}
-        {/* <InventoryScreen></InventoryScreen> */}
+        {/* <Recipe></Recipe>
+        <NavBar></NavBar> */}
+        <InventoryScreen></InventoryScreen>
       </View>
     </View>
   );
