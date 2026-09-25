@@ -96,7 +96,7 @@ export function HomeScreen() {
 
         return () => clearInterval(intervalId);
     }, []);
-
+  
     const hourFormatter = useMemo(
         () => makeHourFormatter(selectedZone.zone),
         [selectedZone.zone]
@@ -200,60 +200,165 @@ export function HomeScreen() {
         // Convert the photo to base64.
         const base64Image = await imageUriToBase64(imageUri);
 
-        // Call Gemini directly.
-        const geminiResponse = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
-            {
-                method: 'POST',
+// CALL 1: Detect ingredients
 
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+const geminiResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+        method: 'POST',
 
-                body: JSON.stringify({
-                    contents: [
+        headers: {
+            'Content-Type': 'application/json',
+        },
+
+        body: JSON.stringify({
+            contents: [
+                {
+                    parts: [
                         {
-                            parts: [
+                            inlineData: {
+                                mimeType: 'image/jpeg',
+                                data: base64Image,
+                            },
+                        },
+                        {
+                            text: `
+                                You are analyzing a photo of a refrigerator for a cooking app called PickToPlate.
+
+                                Identify the food ingredients that are clearly visible in the refrigerator.
+
+                                Return ONLY valid JSON in exactly this format:
+
                                 {
-                                    inlineData: {
-                                        mimeType: 'image/jpeg',
-                                        data: base64Image,
-                                    },
-                                },
-                                {
-                                    text: `
-                                        You are analyzing a photo of a refrigerator for a cooking app called PickToPlate.
-                                        Identify the food ingredients that are clearly visible in the refrigerator.
-                                        Return ONLY valid JSON.
-                                        Use exactly this format:
-                                            {
-                                            "ingredients": [
-                                                {
-                                                "name": "eggs",
-                                                "confidence": "high"
-                                                }
-                                            ]
-                                            }
-                                        Rules:
-                                        - Only include food ingredients that are actually visible.
-                                        - Do not invent ingredients.
-                                        - Do not include non-food objects.
-                                        - If you see a container but cannot determine what is inside, do not guess.
-                                        - Use simple ingredient names.
-                                        - Confidence must be exactly one of:
-                                        "high", "medium", or "low".
-                                        - If an ingredient is uncertain, use "low".
-                                        - Do not include markdown.
-                                        - Do not include \`\`\`json.
-                                        - Return only the JSON object.
-                                    `,
-                                },
-                            ],
+                                    "ingredients": [
+                                        {
+                                            "name": "eggs",
+                                            "confidence": "high",
+                                            "category": "Dairy and Eggs"
+                                        }
+                                    ]
+                                }
+
+                                Rules:
+                                - Only include food ingredients that are actually visible.
+                                - Do not invent ingredients.
+                                - Do not include non-food objects.
+                                - If you see a container but cannot determine what is inside, do not guess.
+                                - Use simple ingredient names.
+                                - Include the category for each ingredient.
+                                - The only categories are:
+                                  "Dairy and Eggs", "Meat", "Produce", "Pantry", and "Other".
+                                - Place every ingredient in exactly one of those categories.
+                                - If you are unsure about the category, use "Other".
+                                - Do not include markdown.
+                                - Do not include \`\`\`json.
+                                - Return only the JSON object.
+                            `,
                         },
                     ],
-                }),
-            }
-        );
+                },
+            ],
+        }),
+    }
+);
+
+const geminiData = await geminiResponse.json();
+
+const ingredientText =
+    geminiData.candidates[0].content.parts[0].text;
+
+// Remove markdown code fences if Gemini happens to include them
+const cleanedIngredientText = ingredientText
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim();
+
+const ingredientData = JSON.parse(cleanedIngredientText);
+
+const detectedIngredients = ingredientData.ingredients;
+
+// CALL 2: Generate recipes
+const recipeResponse = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
+    {
+        method: 'POST',
+
+        headers: {
+            'Content-Type': 'application/json',
+        },
+
+        body: JSON.stringify({
+            contents: [
+                {
+                    parts: [
+                        {
+                            text: `
+                                You are generating recipes for a cooking app called PickToPlate.
+
+                                The ingredients detected in the user's refrigerator are:
+
+                                ${detectedIngredients
+                                    .map((ingredient: { name: any; }) => ingredient.name)
+                                    .join(', ')}
+
+                                Generate 5 different meals that primarily use
+                                the ingredients listed above.
+
+                                Rules:
+                                - Prioritize recipes that use multiple detected ingredients.
+                                - You may assume basic pantry staples such as salt,
+                                  pepper, cooking oil, and common seasonings.
+                                - Do not require unusual ingredients that are not listed.
+                                - A recipe may use a small number of additional basic ingredients
+                                  if necessary.
+                                - Make the recipes practical for a normal home kitchen.
+
+                                Return ONLY valid JSON in exactly this format:
+
+                                {
+                                    "recipes": [
+                                        {
+                                            "name": "Spinach and Cheddar Omelet",
+                                            "description": "A simple omelet made with eggs, spinach, and cheddar cheese.",
+                                            "ingredients": [
+                                                "eggs",
+                                                "spinach",
+                                                "cheddar cheese"
+                                            ],
+                                            "instructions": [
+                                                "Whisk the eggs in a bowl.",
+                                                "Cook the spinach in a pan.",
+                                                "Add the eggs and cheddar cheese.",
+                                                "Cook until the eggs are fully set."
+                                            ]
+                                        }
+                                    ]
+                                }
+
+                                Do not include markdown.
+                                Do not include \`\`\`json.
+                                Return only the JSON object.
+                            `,
+                        },
+                    ],
+                },
+            ],
+        }),
+    }
+);
+
+const recipeData = await recipeResponse.json();
+
+const recipeText =
+    recipeData.candidates[0].content.parts[0].text;
+
+    const cleanedRecipeText = recipeText
+    .replace(/```json/g, '')
+    .replace(/```/g, '')
+    .trim();
+
+    const recipeResults = JSON.parse(cleanedRecipeText);
+const recipes = recipeResults.recipes;
 
         // Check whether Gemini successfully responded.
         if (!geminiResponse.ok) {
