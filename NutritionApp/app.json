@@ -41,7 +41,8 @@
         {
           "cameraPermission": "Allow NutritionApp to access your camera to scan your fridge."
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,
