@@ -16,8 +16,12 @@ export const RecipeList = ({ onSelect }) => {
     const placeholderRecipeSlots = Array.from({ length: 10 });
 
     return(
+        // ADDED: nestedScrollEnabled — this list now sits inside the Meal Plan
+        // screen's own ScrollView, and Android needs this flag to let the
+        // inner list scroll instead of the outer one grabbing every swipe.
         <ScrollView style={styles.recipewindow}
-        showsVerticalScrollIndicator={false}>
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled>
             <Text style={styles.recipetext}>Recipes</Text>
 
             {placeholderRecipeSlots.map((_, index) => (

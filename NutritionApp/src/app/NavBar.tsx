@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
-import { Text, View, Image, PanResponder, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, View, Image, PanResponder, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView, Platform, StatusBar } from 'react-native';
 import {
   createStaticNavigation,
   useNavigation,
@@ -150,7 +150,10 @@ function MealPlanScreen () {
   });
 
   return (
-    <View style={{ flex: 1 }}>
+    // CHANGED: was a plain <View>. SafeAreaView + the paddingTop in
+    // mealPlanStyles.screen keep the calendar from sliding up under the
+    // phone's status bar / notch.
+    <SafeAreaView style={mealPlanStyles.screen}>
       {/* Header — arrows call goToNextWeek/goToPreviousWeek directly, with
           no debounce, so they're always instantly responsive. */}
       <View style={mealPlanStyles.calendarHeader}>
@@ -188,7 +191,17 @@ function MealPlanScreen () {
         })}
       </View>
 
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+      {/* CHANGED: this was a plain <View> with justifyContent: 'center'.
+          On a phone, once a meal card expanded (to show "Choose your meal"
+          and the recipe list) the content got taller than the screen, and a
+          View can't scroll — so the extra part was cut off. A ScrollView
+          lets the whole list scroll, so an opened card always fits. */}
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={mealPlanStyles.slotsContent}
+        showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
+      >
         <MealPlan
           mealimage={'weather-sunny'}
           mealtxt="Breakfast"
@@ -221,12 +234,24 @@ function MealPlanScreen () {
           onSelectRecipe={(recipe) => setMeal(selected, 'Snack', recipe)}
           onClearRecipe={() => removeMeal(selected, 'Snack')}
         ></MealPlan>
-      </View>
-    </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const mealPlanStyles = StyleSheet.create({
+  // ADDED: white background, plus extra top padding on Android (where the
+  // built-in SafeAreaView doesn't account for the status bar by itself).
+  screen: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 0) : 0,
+  },
+  // ADDED: layout for the scrolling list of meal cards.
+  slotsContent: {
+    alignItems: 'center',
+    paddingBottom: 40,
+  },
   calendarHeader: {
     flexDirection: 'row',
     justifyContent: 'center',
