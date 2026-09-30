@@ -13,8 +13,10 @@ import {
 } from 'react-native';
 import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
 import pizza from '@/assets/Recipe_Images/pizza.jpg';
+import { Recipe } from './recipe';
+// ADDED: shared meal-plan data (what you picked in the calendar).
+import { useMealPlan, makeDateKey } from './mealPlanStore';
 
 // --- Recommended recipe -----------------------------------------------------
 // Hardcoded for now (matches the one recipe that currently exists in the
@@ -39,7 +41,7 @@ const MEAL_TIMES = [
     { label: 'Dinner', icon: 'moon-outline', hour: 18 },
 ];
 
-function getClosestMeal(hour: number) {
+function getClosestMeal(hour) {
     let closest = MEAL_TIMES[0];
     let minDistance = Infinity;
 
@@ -101,15 +103,13 @@ export function HomeScreen(){
     // it (and, later, hand it off to whatever does the fridge analysis).
     const [capturedPhoto, setCapturedPhoto] = useState(null);
 
-    // FIXED: navigation.navigate() was coming back undefined because
-    // useNavigation() was being imported from 'expo-router' elsewhere in
-    // the app. HomeScreen isn't actually mounted inside Expo Router's own
-    // navigation tree — NavBar.tsx builds a separate, independent
-    // @react-navigation/native tree (see the `independent` comment there),
-    // and Home lives inside THAT one. Importing useNavigation from
-    // '@react-navigation/native' (same library NavBar.tsx itself uses)
-    // gives us the right navigation object.
-    const navigation = useNavigation<any>();
+    // WORKAROUND: while navigation.navigate() is broken (navigation keeps
+    // coming back undefined — see our debugging), this just swaps the
+    // recipe in directly using local state, no navigation library involved.
+    // Trade-off: the bottom tab bar won't highlight "Recipes" while this is
+    // showing, since we're not actually switching tabs. Once the real
+    // navigation bug is fixed, this can go back to navigation.navigate(...).
+    const [showRecipePage, setShowRecipePage] = useState(false);
 
     // ...and ticks forward every second, so the displayed time and the
     // meal badge both stay accurate without needing a refresh.
@@ -128,6 +128,16 @@ export function HomeScreen(){
 
     const currentHour = parseInt(hourFormatter.format(now), 10);
     const closestMeal = getClosestMeal(currentHour);
+
+    // ADDED: look up what you planned for THIS meal slot on TODAY's date
+    // (date read in the selected timezone, same as the clock). If something
+    // is planned, the card shows it as "Recipe coming up"; otherwise it
+    // falls back to the normal recommendation.
+    const { getMeal } = useMealPlan();
+    const todayKey = makeDateKey(now, selectedZone.zone);
+    const plannedMeal = getMeal(todayKey, closestMeal.label);
+    const cardRecipe = plannedMeal ?? RECOMMENDED_RECIPE;
+    const cardLabel = plannedMeal ? 'Recipe coming up' : 'Recommended Recipe';
 
     // Requests camera permission (if not already granted), then opens the
     // native camera. If the user takes a photo (doesn't cancel), its URI
@@ -155,17 +165,33 @@ export function HomeScreen(){
         }
     };
 
-    // Real navigation: jump to the Recipes tab and open its "Recipes" screen
-    // with a param telling Recipe to auto-expand straight to Instructions.
-    // "RecipesStack" isn't a screen inside HomeStack, so this action bubbles
-    // up to the parent tab navigator (MyTabs), which switches tabs for us —
-    // that's also why the tab bar now correctly highlights "Recipes".
+    // Switches to showing the Recipe component in place, via local state.
     const handleOpenRecommendedRecipe = () => {
-        navigation.navigate('RecipesStack', {
-            screen: 'Recipes',
-            params: { autoOpenInstructions: true },
-        });
+        setShowRecipePage(true);
     };
+
+    // While showRecipePage is true, render Recipe instead of the normal
+    // Home content — with a simple back button (also just local state, no
+    // navigation library) to return to Home.
+    if (showRecipePage) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <StatusBar barStyle="dark-content" />
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        onPress={() => setShowRecipePage(false)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={styles.recipeBackButton}
+                    >
+                        <Ionicons name="chevron-back" size={22} color="#3F6647" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Recipe</Text>
+                    <View style={{ width: 22 }} />
+                </View>
+                <Recipe autoOpenInstructions />
+            </SafeAreaView>
+        );
+    }
 
     return(
         <SafeAreaView style={styles.safeArea}>
@@ -265,16 +291,16 @@ export function HomeScreen(){
                   Recipes tab. Currently always the pizza recipe
                   (RECOMMENDED_RECIPE above); once AI recommendations exist,
                   that constant is the only thing that needs to change. */}
-              <Text style={styles.recommendedLabel}>Recommended Recipe</Text>
+              <Text style={styles.recommendedLabel}>{cardLabel}</Text>
               <TouchableOpacity
                   style={styles.recommendedCard}
                   activeOpacity={0.85}
                   onPress={handleOpenRecommendedRecipe}
               >
-                  <Image source={RECOMMENDED_RECIPE.image} style={styles.recommendedImage} />
+                  <Image source={cardRecipe.image} style={styles.recommendedImage} />
                   <View style={styles.recommendedTextWrap}>
-                      <Text style={styles.recommendedTitle}>{RECOMMENDED_RECIPE.name}</Text>
-                      <Text style={styles.recommendedDescription}>{RECOMMENDED_RECIPE.description}</Text>
+                      <Text style={styles.recommendedTitle}>{cardRecipe.name}</Text>
+                      <Text style={styles.recommendedDescription}>{cardRecipe.description}</Text>
                   </View>
                   <Ionicons name="chevron-forward" size={18} color="#9AA39C" />
               </TouchableOpacity>
