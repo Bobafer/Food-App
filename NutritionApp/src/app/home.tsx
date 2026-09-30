@@ -17,17 +17,11 @@ import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import pizza from '@/assets/Recipe_Images/pizza.jpg';
 
-// --- Recommended recipe -----------------------------------------------------
-// Hardcoded for now (matches the one recipe that currently exists in the
-// Recipes tab). Once real AI-driven recommendations exist, this is the one
-// place to swap out — replace this constant with whatever recipe the model
-// picks (name/description/image), and everything below keeps working as-is.
 const RECOMMENDED_RECIPE = {
     name: 'Pizza',
     description: 'Italian bread with sauce',
     image: pizza,
 };
-// ----------------------------------------------------------------------------
 
 const MEAL_TIMES = [
     { label: 'Breakfast', icon: 'sunny-outline', hour: 8 },
@@ -78,8 +72,6 @@ function makeClockDisplayFormatter(zone: string) {
     });
 }
 
-// ----------------------------------------------------------------------------
-
 export function HomeScreen() {
 
     const [now, setNow] = useState(new Date());
@@ -111,25 +103,36 @@ export function HomeScreen() {
     const closestMeal = getClosestMeal(currentHour);
 
     
-    //the photo
     const [capturedPhoto, setCapturedPhoto] =
         useState<string | null>(null);
-    //is gemini analyzing?
     const [analyzing, setAnalyzing] =
         useState<boolean>(false);
     
         type Ingredient = {
         name: string;
         confidence: 'high' | 'medium' | 'low';
+        category:
+            | 'Dairy and Eggs'
+            | 'Meat'
+            | 'Produce'
+            | 'Pantry'
+            | 'Other';
+    };
+
+    type Recipe = {
+        name: string;
+        description: string;
+        ingredients: string[];
+        instructions: string[];
     };
 
     const [ingredients, setIngredients] =
         useState<Ingredient[]>([]);
 
-    // CONVERT IMAGE URI TO BASE64 - base64 = image --> words
+    const [recipes, setRecipes] = useState<Recipe[]>([]);
+
     const imageUriToBase64 = async (imageUri: string | URL | Request) => {
         const response = await fetch(imageUri);
-        //did loading work
         if (!response.ok) {
             throw new Error('Could not read the captured image.');
         }
@@ -140,9 +143,7 @@ export function HomeScreen() {
             const reader = new FileReader();
 
             reader.onloadend = () => {
-                try {
-                    //makes sure it is a string as base64 is a string always
-                    const result = reader.result;
+                try {                    const result = reader.result;
 
                     if (typeof result !== 'string') {
                         reject(
@@ -178,245 +179,257 @@ export function HomeScreen() {
         });
     };
 
-    // SEND PHOTO TO GEMINI
-
     const analyzeFridgePhoto = async (imageUri: string) => {
-    try {
-        setAnalyzing(true);
+        try {
+            setAnalyzing(true);
 
-        // Clear previous ingredients while analyzing the new photo.
-        setIngredients([]);
+            setIngredients([]);
+            setRecipes([]);
 
-        // Get the API key from Expo's environment variables.
-        const GEMINI_API_KEY =
-            process.env.EXPO_PUBLIC_AI_API_KEY;
+            const GEMINI_API_KEY =
+                process.env.EXPO_PUBLIC_AI_API_KEY;
 
-        if (!GEMINI_API_KEY) {
-            throw new Error(
-                'Gemini API key is missing. Check your .env file.'
-            );
-        }
+            if (!GEMINI_API_KEY) {
+                throw new Error(
+                    'Gemini API key is missing. Check your .env file.'
+                );
+            }
 
-        // Convert the photo to base64.
-        const base64Image = await imageUriToBase64(imageUri);
+            const base64Image = await imageUriToBase64(imageUri);
 
-// CALL 1: Detect ingredients
-
-const geminiResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-        method: 'POST',
-
-        headers: {
-            'Content-Type': 'application/json',
-        },
-
-        body: JSON.stringify({
-            contents: [
+            const geminiResponse = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
                 {
-                    parts: [
-                        {
-                            inlineData: {
-                                mimeType: 'image/jpeg',
-                                data: base64Image,
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                parts: [
+                                    {
+                                        inlineData: {
+                                            mimeType: 'image/jpeg',
+                                            data: base64Image,
+                                        },
+                                    },
+                                    {
+                                        text: `
+                                            You are analyzing a photo of a refrigerator for a cooking app called PickToPlate.
+
+                                            Identify the food ingredients that are clearly visible in the refrigerator.
+
+                                            Return ONLY valid JSON in exactly this format:
+                                            {
+                                                "ingredients": [
+                                                    {
+                                                        "name": "eggs",
+                                                        "confidence": "high",
+                                                        "category": "Dairy and Eggs"
+                                                    }
+                                                ]
+                                            }
+
+                                            Rules:
+                                            - Only include food ingredients that are actually visible.
+                                            - Do not invent ingredients.
+                                            - Do not include non-food objects.
+                                            - If you see a container but cannot determine what is inside, do not guess.
+                                            - Use simple ingredient names.
+                                            - Include the category for each ingredient.
+                                            - The only categories are:
+                                              "Dairy and Eggs", "Meat", "Produce", "Pantry", and "Other".
+                                            - Place every ingredient in exactly one of those categories.
+                                            - If you are unsure about the category, use "Other".
+                                            - Do not include markdown.
+                                            - Do not include \`\`\`json.
+                                            - Return only the JSON object.
+                                        `,
+                                    },
+                                ],
                             },
-                        },
-                        {
-                            text: `
-                                You are analyzing a photo of a refrigerator for a cooking app called PickToPlate.
+                        ],
+                    }),
+                }
+            );
 
-                                Identify the food ingredients that are clearly visible in the refrigerator.
+            // Check the first Gemini request before trying to parse it.
+            if (!geminiResponse.ok) {
+                const errorText = await geminiResponse.text();
 
-                                Return ONLY valid JSON in exactly this format:
+                throw new Error(
+                    `Gemini ingredient request failed: ${geminiResponse.status} ${errorText}`
+                );
+            }
 
-                                {
-                                    "ingredients": [
-                                        {
-                                            "name": "eggs",
-                                            "confidence": "high",
-                                            "category": "Dairy and Eggs"
-                                        }
-                                    ]
-                                }
+            const ingredientResponseData =
+                await geminiResponse.json();
 
-                                Rules:
-                                - Only include food ingredients that are actually visible.
-                                - Do not invent ingredients.
-                                - Do not include non-food objects.
-                                - If you see a container but cannot determine what is inside, do not guess.
-                                - Use simple ingredient names.
-                                - Include the category for each ingredient.
-                                - The only categories are:
-                                  "Dairy and Eggs", "Meat", "Produce", "Pantry", and "Other".
-                                - Place every ingredient in exactly one of those categories.
-                                - If you are unsure about the category, use "Other".
-                                - Do not include markdown.
-                                - Do not include \`\`\`json.
-                                - Return only the JSON object.
-                            `,
-                        },
-                    ],
-                },
-            ],
-        }),
-    }
-);
+            const ingredientText =
+                ingredientResponseData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
-const geminiData = await geminiResponse.json();
+            if (!ingredientText) {
+                throw new Error(
+                    'Gemini did not return any ingredients.'
+                );
+            }
 
-const ingredientText =
-    geminiData.candidates[0].content.parts[0].text;
+            // Remove markdown code fences if Gemini happens to include them.
+            const cleanedIngredientText = ingredientText
+                .replace(/```json/g, '')
+                .replace(/```/g, '')
+                .trim();
 
-// Remove markdown code fences if Gemini happens to include them
-const cleanedIngredientText = ingredientText
-    .replace(/```json/g, '')
-    .replace(/```/g, '')
-    .trim();
+            const ingredientData =
+                JSON.parse(cleanedIngredientText);
 
-const ingredientData = JSON.parse(cleanedIngredientText);
+            if (!Array.isArray(ingredientData.ingredients)) {
+                throw new Error(
+                    'Gemini returned an invalid ingredients format.'
+                );
+            }
 
-const detectedIngredients = ingredientData.ingredients;
+            const detectedIngredients: Ingredient[] =
+                ingredientData.ingredients;
 
-// CALL 2: Generate recipes
-const recipeResponse = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-        method: 'POST',
+            setIngredients(detectedIngredients);
 
-        headers: {
-            'Content-Type': 'application/json',
-        },
-
-        body: JSON.stringify({
-            contents: [
+            const recipeResponse = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
                 {
-                    parts: [
-                        {
-                            text: `
-                                You are generating recipes for a cooking app called PickToPlate.
+                    method: 'POST',
 
-                                The ingredients detected in the user's refrigerator are:
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
 
-                                ${detectedIngredients
-                                    .map((ingredient: { name: any; }) => ingredient.name)
-                                    .join(', ')}
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                parts: [
+                                    {
+                                        text: `
+                                            You are generating recipes for a cooking app called PickToPlate.
 
-                                Generate 5 different meals that primarily use
-                                the ingredients listed above.
+                                            The ingredients detected in the user's refrigerator are:
 
-                                Rules:
-                                - Prioritize recipes that use multiple detected ingredients.
-                                - You may assume basic pantry staples such as salt,
-                                  pepper, cooking oil, and common seasonings.
-                                - Do not require unusual ingredients that are not listed.
-                                - A recipe may use a small number of additional basic ingredients
-                                  if necessary.
-                                - Make the recipes practical for a normal home kitchen.
+                                            ${detectedIngredients
+                                                .map(
+                                                    (ingredient) =>
+                                                        ingredient.name
+                                                )
+                                                .join(', ')}
 
-                                Return ONLY valid JSON in exactly this format:
+                                            Generate 5 different meals that primarily use
+                                            the ingredients listed above.
 
-                                {
-                                    "recipes": [
-                                        {
-                                            "name": "Spinach and Cheddar Omelet",
-                                            "description": "A simple omelet made with eggs, spinach, and cheddar cheese.",
-                                            "ingredients": [
-                                                "eggs",
-                                                "spinach",
-                                                "cheddar cheese"
-                                            ],
-                                            "instructions": [
-                                                "Whisk the eggs in a bowl.",
-                                                "Cook the spinach in a pan.",
-                                                "Add the eggs and cheddar cheese.",
-                                                "Cook until the eggs are fully set."
-                                            ]
-                                        }
-                                    ]
-                                }
+                                            Rules:
+                                            - Prioritize recipes that use multiple detected ingredients.
+                                            - You may assume basic pantry staples such as salt,
+                                              pepper, cooking oil, and common seasonings.
+                                            - Do not require unusual ingredients that are not listed.
+                                            - A recipe may use a small number of additional basic ingredients
+                                              if necessary.
+                                            - Make the recipes practical for a normal home kitchen.
+                                            - Give each recipe a name and short description.
+                                            - List the ingredients needed for each recipe.
+                                            - Give clear step-by-step cooking instructions.
 
-                                Do not include markdown.
-                                Do not include \`\`\`json.
-                                Return only the JSON object.
-                            `,
-                        },
-                    ],
-                },
-            ],
-        }),
-    }
-);
+                                            Return ONLY valid JSON in exactly this format:
 
-const recipeData = await recipeResponse.json();
+                                            {
+                                                "recipes": [
+                                                    {
+                                                        "name": "Spinach and Cheddar Omelet",
+                                                        "description": "A simple omelet made with eggs, spinach, and cheddar cheese.",
+                                                        "ingredients": [
+                                                            "eggs",
+                                                            "spinach",
+                                                            "cheddar cheese"
+                                                        ],
+                                                        "instructions": [
+                                                            "Whisk the eggs in a bowl.",
+                                                            "Cook the spinach in a pan.",
+                                                            "Add the eggs and cheddar cheese.",
+                                                            "Cook until the eggs are fully set."
+                                                        ]
+                                                    }
+                                                ]
+                                            }
 
-const recipeText =
-    recipeData.candidates[0].content.parts[0].text;
-
-    const cleanedRecipeText = recipeText
-    .replace(/```json/g, '')
-    .replace(/```/g, '')
-    .trim();
-
-    const recipeResults = JSON.parse(cleanedRecipeText);
-const recipes = recipeResults.recipes;
-
-        // Check whether Gemini successfully responded.
-        if (!geminiResponse.ok) {
-            const errorText = await geminiResponse.text();
-
-            throw new Error(
-                `Gemini request failed: ${geminiResponse.status} ${errorText}`
+                                            Do not include markdown.
+                                            Do not include \`\`\`json.
+                                            Return only the JSON object.
+                                        `,
+                                    },
+                                ],
+                            },
+                        ],
+                    }),
+                }
             );
-        }
 
-        // Convert Gemini response into JSON.
-        const geminiData = await geminiResponse.json();
+            // Check the second Gemini request.
+            if (!recipeResponse.ok) {
+                const errorText = await recipeResponse.text();
 
-        // Get the text Gemini generated.
-        const responseText =
-            geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
+                throw new Error(
+                    `Gemini recipe request failed: ${recipeResponse.status} ${errorText}`
+                );
+            }
 
-        if (!responseText) {
-            throw new Error(
-                'Gemini did not return any analysis.'
+            const recipeResponseData =
+                await recipeResponse.json();
+
+            const recipeText =
+                recipeResponseData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!recipeText) {
+                throw new Error(
+                    'Gemini did not return any recipes.'
+                );
+            }
+
+            // Remove markdown code fences if Gemini happens to include them.
+            const cleanedRecipeText = recipeText
+                .replace(/```json/g, '')
+                .replace(/```/g, '')
+                .trim();
+
+            const recipeData =
+                JSON.parse(cleanedRecipeText);
+
+            if (!Array.isArray(recipeData.recipes)) {
+                throw new Error(
+                    'Gemini returned an invalid recipes format.'
+                );
+            }
+            const detectedRecipes: Recipe[] =
+                recipeData.recipes;
+
+            // Store recipes in React state so they appear in the UI.
+            setRecipes(detectedRecipes);
+
+        } catch (error) {
+            console.error(
+                'Error analyzing fridge photo:',
+                error
             );
-        }
 
-        // Remove markdown code fences if Gemini happens to include them.
-        const cleanedText = responseText
-            .replace(/```json/g, '')
-            .replace(/```/g, '')
-            .trim();
-
-        // Parse Gemini's JSON response.
-        const parsedResult = JSON.parse(cleanedText);
-
-        // Make sure the response contains an ingredients array.
-        if (!Array.isArray(parsedResult.ingredients)) {
-            throw new Error(
-                'Gemini returned an invalid ingredients format.'
+            Alert.alert(
+                'Analysis failed',
+                error instanceof Error
+                    ? error.message
+                    : 'Something went wrong while analyzing your fridge photo.'
             );
+        } finally {
+            // Always stop the loading state.
+            setAnalyzing(false);
         }
-
-        // Display the ingredients in the UI.
-        setIngredients(parsedResult.ingredients);
-    } catch (error) {
-        console.error(
-            'Error analyzing fridge photo:',
-            error
-        );
-
-        Alert.alert(
-            'Analysis failed',
-            error instanceof Error
-                ? error.message
-                : 'Something went wrong while analyzing your fridge photo.'
-        );
-    } finally {
-        // Always stop the loading state.
-        setAnalyzing(false);
-    }
-};
+    };
 
 
     // TAKE PHOTO
@@ -440,14 +453,7 @@ const recipes = recipeResults.recipes;
 
         if (!result.canceled) {
             const photoUri = result.assets[0].uri;
-
-            // Show the photo immediately.
             setCapturedPhoto(photoUri);
-
-            // Analyze THIS photo directly.
-            //
-            // We don't use capturedPhoto here because React state updates
-            // asynchronously.
             analyzeFridgePhoto(photoUri);
         }
     };
@@ -646,8 +652,59 @@ const recipes = recipeResults.recipes;
                         )}
                     </View>
                 )}
+                {recipes.length > 0 && !analyzing && (
+                    <View style={styles.recipesContainer}>
+                        <Text style={styles.recipesTitle}>
+                            Recipes for You
+                        </Text>
 
-                {/* MEAL BADGE */}
+                        {recipes.map((recipe, index) => (
+                            <View
+                                key={`${recipe.name}-${index}`}
+                                style={styles.recipeCard}
+                            >
+                                <Text style={styles.recipeName}>
+                                    {recipe.name}
+                                </Text>
+
+                                <Text style={styles.recipeDescription}>
+                                    {recipe.description}
+                                </Text>
+
+                                <Text style={styles.recipeSectionTitle}>
+                                    Ingredients
+                                </Text>
+
+                                {recipe.ingredients.map(
+                                    (ingredient, ingredientIndex) => (
+                                        <Text
+                                            key={`${ingredient}-${ingredientIndex}`}
+                                            style={styles.recipeIngredient}
+                                        >
+                                            • {ingredient}
+                                        </Text>
+                                    )
+                                )}
+
+                                <Text style={styles.recipeSectionTitle}>
+                                    Instructions
+                                </Text>
+
+                                {recipe.instructions.map(
+                                    (instruction, instructionIndex) => (
+                                        <Text
+                                            key={`${recipe.name}-step-${instructionIndex}`}
+                                            style={styles.recipeInstruction}
+                                        >
+                                            {instructionIndex + 1}. {instruction}
+                                        </Text>
+                                    )
+                                )}
+                            </View>
+                        ))}
+                    </View>
+                )}
+
                 <View style={styles.mealBadge}>
                     <MaterialCommunityIcons
                         name={
@@ -675,10 +732,6 @@ const recipes = recipeResults.recipes;
         </SafeAreaView>
     );
 }
-
-// ----------------------------------------------------------------------------
-// STYLES
-// ----------------------------------------------------------------------------
 
 const styles = StyleSheet.create({
     safeArea: {
@@ -738,9 +791,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderRadius: 14,
         paddingVertical: 6,
-
-        // If boxShadow causes issues on your Expo version,
-        // you can remove this property.
         boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.15)',
     },
 
@@ -818,10 +868,6 @@ const styles = StyleSheet.create({
         backgroundColor: '#E5E5E5',
     },
 
-    // ------------------------------------------------------------------------
-    // GEMINI UI
-    // ------------------------------------------------------------------------
-
     analyzingContainer: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -886,6 +932,64 @@ const styles = StyleSheet.create({
         color: '#5C8A66',
         fontWeight: '600',
         textTransform: 'capitalize',
+    },
+
+    recipesContainer: {
+        width: '100%',
+        marginTop: 20,
+    },
+
+    recipesTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginBottom: 12,
+    },
+
+    recipeCard: {
+        width: '100%',
+        backgroundColor: '#F3F6F2',
+        borderRadius: 16,
+        padding: 18,
+        marginBottom: 14,
+        borderWidth: 1,
+        borderColor: '#D5E3D5',
+    },
+
+    recipeName: {
+        fontSize: 19,
+        fontWeight: '700',
+        color: '#22331F',
+        marginBottom: 6,
+    },
+
+    recipeDescription: {
+        fontSize: 14,
+        lineHeight: 20,
+        color: '#5F6B5F',
+        marginBottom: 14,
+    },
+
+    recipeSectionTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginTop: 6,
+        marginBottom: 5,
+    },
+
+    recipeIngredient: {
+        fontSize: 14,
+        lineHeight: 21,
+        color: '#22331F',
+        marginLeft: 4,
+    },
+
+    recipeInstruction: {
+        fontSize: 14,
+        lineHeight: 21,
+        color: '#22331F',
+        marginBottom: 4,
     },
 
     mealBadge: {
