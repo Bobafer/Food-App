@@ -16,6 +16,7 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import pizza from '@/assets/Recipe_Images/pizza.jpg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const RECOMMENDED_RECIPE = {
     name: 'Pizza',
@@ -112,7 +113,7 @@ export function HomeScreen() {
         name: string;
         confidence: 'high' | 'medium' | 'low';
         category:
-            | 'Dairy and Eggs'
+            | 'Dairy and eggs'
             | 'Meat'
             | 'Produce'
             | 'Pantry'
@@ -130,7 +131,79 @@ export function HomeScreen() {
         useState<Ingredient[]>([]);
 
     const [recipes, setRecipes] = useState<Recipe[]>([]);
+    const INVENTORY_STORAGE_KEY = '@PickToPlate:inventory';
+    const addIngredientsToInventory = async () => {
+    if (ingredients.length === 0) return;
 
+    try {
+        const storedValue =
+            await AsyncStorage.getItem(INVENTORY_STORAGE_KEY);
+
+        const currentInventory = storedValue
+            ? JSON.parse(storedValue)
+            : [];
+
+        const updatedInventory = [...currentInventory];
+
+        ingredients.forEach((ingredient) => {
+            const normalName = ingredient.name.trim();
+
+            if (!normalName) return;
+
+            const existingIndex = updatedInventory.findIndex(
+                (item: any) =>
+                    item.name?.trim().toLowerCase() ===
+                    normalName.toLowerCase()
+            );
+
+            if (existingIndex >= 0) {
+                updatedInventory[existingIndex] = {
+                    ...updatedInventory[existingIndex],
+                    quantity:
+                        Number(
+                            updatedInventory[existingIndex].quantity || 0
+                        ) + 1,
+                };
+            } else {
+                updatedInventory.push({
+                    id: `${normalName
+                        .toLowerCase()
+                        .replace(/\s+/g, '_')}_${Date.now()}_${Math.random()
+                        .toString(36)
+                        .slice(2, 7)}`,
+                    name: normalName,
+                    category: ingredient.category,
+                    quantity: 1,
+                    unit: 'count',
+                    lowStockAt: 1,
+                });
+            }
+        });
+
+        await AsyncStorage.setItem(
+            INVENTORY_STORAGE_KEY,
+            JSON.stringify(updatedInventory)
+        );
+
+        Alert.alert(
+            'Added to Inventory',
+            `${ingredients.length} ingredient${
+                ingredients.length === 1 ? '' : 's'
+            } added to your inventory.`
+        );
+    } catch (error) {
+        console.error(
+            'Failed to add ingredients to inventory:',
+            error
+        );
+
+        Alert.alert(
+            'Could not update inventory',
+            'The ingredients were found, but they could not be added to your inventory.'
+        );
+    }
+};
+        
     const imageUriToBase64 = async (imageUri: string | URL | Request) => {
         const response = await fetch(imageUri);
         if (!response.ok) {
@@ -228,7 +301,7 @@ export function HomeScreen() {
                                                     {
                                                         "name": "eggs",
                                                         "confidence": "high",
-                                                        "category": "Dairy and Eggs"
+                                                        "category": "Dairy and eggs"
                                                     }
                                                 ]
                                             }
@@ -241,7 +314,7 @@ export function HomeScreen() {
                                             - Use simple ingredient names.
                                             - Include the category for each ingredient.
                                             - The only categories are:
-                                              "Dairy and Eggs", "Meat", "Produce", "Pantry", and "Other".
+                                              "Dairy and eggs", "Meat", "Produce", "Pantry", and "Other".
                                             - Place every ingredient in exactly one of those categories.
                                             - If you are unsure about the category, use "Other".
                                             - Do not include markdown.
@@ -613,45 +686,54 @@ export function HomeScreen() {
 
                 {/* INGREDIENT RESULTS */}
                 {ingredients.length > 0 && !analyzing && (
-                    <View style={styles.ingredientsContainer}>
-                        <Text style={styles.ingredientsTitle}>
-                            Ingredients Found
-                        </Text>
+                <View style={styles.ingredientsContainer}>
+                <Text style={styles.ingredientsTitle}>
+                    Ingredients Found
+                </Text>
 
-                        {ingredients.map(
-                            (ingredient, index) => (
-                                <View
-                                    key={`${ingredient.name}-${index}`}
-                                    style={styles.ingredientRow}
-                                >
-                                    <View style={styles.ingredientLeft}>
-                                        <View
-                                            style={
-                                                styles.ingredientBullet
-                                            }
-                                        />
+                {ingredients.map((ingredient, index) => (
+                    <View
+                        key={`${ingredient.name}-${index}`}
+                        style={styles.ingredientRow}
+                    >
+                        <View style={styles.ingredientLeft}>
+                            <View style={styles.ingredientBullet} />
 
-                                        <Text
-                                            style={
-                                                styles.ingredientName
-                                            }
-                                        >
-                                            {ingredient.name}
-                                        </Text>
-                                    </View>
+                            <Text style={styles.ingredientName}>
+                                {ingredient.name}
+                            </Text>
+                        </View>
 
-                                    <Text
-                                        style={
-                                            styles.ingredientConfidence
-                                        }
-                                    >
-                                        {ingredient.confidence}
-                                    </Text>
-                                </View>
-                            )
-                        )}
+                        <View style={styles.ingredientMeta}>
+                            <Text style={styles.ingredientCategory}>
+                                {ingredient.category}
+                            </Text>
+
+                            <Text style={styles.ingredientConfidence}>
+                                {ingredient.confidence}
+                            </Text>
+                        </View>
                     </View>
-                )}
+                ))}
+
+                {/* ADD EVERYTHING TO INVENTORY */}
+                <TouchableOpacity
+                    style={styles.addToInventoryButton}
+                    onPress={addIngredientsToInventory}
+                    activeOpacity={0.85}
+                >
+                    <Ionicons
+                        name="add-circle-outline"
+                        size={20}
+                        color="#FFFFFF"
+                    />
+
+                    <Text style={styles.addToInventoryButtonText}>
+                        Add to Inventory
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        )}
                 {recipes.length > 0 && !analyzing && (
                     <View style={styles.recipesContainer}>
                         <Text style={styles.recipesTitle}>
@@ -927,11 +1009,40 @@ const styles = StyleSheet.create({
         textTransform: 'capitalize',
     },
 
+    ingredientMeta: {
+    alignItems: 'flex-end',
+    marginLeft: 10,
+},
+
+    ingredientCategory: {
+        fontSize: 11,
+        color: '#3F6647',
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+
     ingredientConfidence: {
         fontSize: 12,
         color: '#5C8A66',
         fontWeight: '600',
         textTransform: 'capitalize',
+    },
+
+    addToInventoryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#6FA377',
+        borderRadius: 12,
+        paddingVertical: 12,
+        marginTop: 16,
+    },
+
+    addToInventoryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
     },
 
     recipesContainer: {
