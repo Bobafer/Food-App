@@ -129,7 +129,7 @@ export function HomeScreen() {
 
     const [ingredients, setIngredients] =
         useState<Ingredient[]>([]);
-
+    const [showIngredients, setShowIngredients] = useState(false);
     const [recipes, setRecipes] = useState<Recipe[]>([]);
     const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
     const [recipePopupVisible, setRecipePopupVisible] = useState(false);
@@ -404,6 +404,7 @@ export function HomeScreen() {
                 ingredientData.ingredients;
 
             setIngredients(detectedIngredients);
+            setShowIngredients(true);
 
             const recipeResponse = await fetch(
                 `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -670,67 +671,74 @@ export function HomeScreen() {
                 presentationStyle="fullScreen"
                 onRequestClose={closeRecipe}
             >
-            <SafeAreaView style={styles.recipeModal}>
-                <View style={styles.recipeModalHeader}>
-                    <Text style={styles.recipeModalTitle}>
-                        Recipe
-                    </Text>
+                <SafeAreaView style={styles.recipeModal}>
 
-                    <TouchableOpacity
-                        onPress={closeRecipe}
-                        style={styles.closeButton}
-                    >
-                        <Ionicons
-                            name="close"
-                            size={30}
-                            color="#22331F"
-                        />
-                    </TouchableOpacity>
-                </View>
-
-                {selectedRecipe && (
-                    <ScrollView
-                        contentContainerStyle={styles.recipeModalContent}
-                        showsVerticalScrollIndicator={false}
-                    >
-
-                        <Text style={styles.recipeModalRecipeName}>
-                            {selectedRecipe.name}
+                    {/* Header */}
+                    <View style={styles.recipeModalHeader}>
+                        <Text style={styles.recipeModalTitle}>
+                            Recipe
                         </Text>
 
-                        <Text style={styles.recipeModalDescription}>
-                            {selectedRecipe.description}
-                        </Text>
+                        <TouchableOpacity
+                            onPress={closeRecipe}
+                            style={styles.closeButton}
+                        >
+                            <Ionicons
+                                name="close"
+                                size={30}
+                                color="#22331F"
+                            />
+                        </TouchableOpacity>
+                    </View>
 
-                        <Text style={styles.recipeModalSectionTitle}>
-                            Ingredients
-                        </Text>
+                    {/* Scrollable recipe content */}
+                    {selectedRecipe && (
+                        <ScrollView
+                            contentContainerStyle={styles.recipeModalContent}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <Text style={styles.recipeModalRecipeName}>
+                                {selectedRecipe.name}
+                            </Text>
 
-                        {selectedRecipe.ingredients.map(
-                            (ingredient, index) => (
-                                <Text
-                                    key={`${ingredient}-${index}`}
-                                    style={styles.recipeModalIngredient}
-                                >
-                                    • {ingredient}
-                                </Text>
-                            )
-                        )}
+                            <Text style={styles.recipeModalDescription}>
+                                {selectedRecipe.description}
+                            </Text>
 
-                        <Text style={styles.recipeModalSectionTitle}>
-                            Instructions
-                        </Text>
+                            <Text style={styles.recipeModalSectionTitle}>
+                                Ingredients
+                            </Text>
 
-                        {selectedRecipe.instructions.map(
-                            (instruction, index) => (
-                                <Text
-                                    key={`${selectedRecipe.name}-instruction-${index}`}
-                                    style={styles.recipeModalInstruction}
-                                >
-                                    {index + 1}. {instruction}
-                                </Text>
-                            )
-                        )}
+                            {selectedRecipe.ingredients.map(
+                                (ingredient, index) => (
+                                    <Text
+                                        key={`${ingredient}-${index}`}
+                                        style={styles.recipeModalIngredient}
+                                    >
+                                        • {ingredient}
+                                    </Text>
+                                )
+                            )}
+
+                            <Text style={styles.recipeModalSectionTitle}>
+                                Instructions
+                            </Text>
+
+                            {selectedRecipe.instructions.map(
+                                (instruction, index) => (
+                                    <Text
+                                        key={`${selectedRecipe.name}-instruction-${index}`}
+                                        style={styles.recipeModalInstruction}
+                                    >
+                                        {index + 1}. {instruction}
+                                    </Text>
+                                )
+                            )}
+                        </ScrollView>
+                    )}
+
+                    {/* Fixed buttons at bottom */}
+                    <View style={styles.recipeActionButtons}>
 
                         <TouchableOpacity
                             style={styles.saveRecipeButton}
@@ -763,9 +771,10 @@ export function HomeScreen() {
                                 Delete Recipe
                             </Text>
                         </TouchableOpacity>
-                    </ScrollView>
-                )}
-            </SafeAreaView>
+
+                    </View>
+
+                </SafeAreaView>
             </Modal>
             <ScrollView
                 contentContainerStyle={styles.content}
@@ -823,8 +832,28 @@ export function HomeScreen() {
                 )}
 
                 {/* INGREDIENT RESULTS */}
-                {ingredients.length > 0 && !analyzing && (
+                {ingredients.length > 0 && !analyzing && showIngredients && (
                 <View style={styles.ingredientsContainer}>
+                    <TouchableOpacity
+                        style={styles.closeIngredientsButton}
+                        onPress={() => setShowIngredients(false)}
+                        hitSlop={{
+                            top: 8,
+                            bottom: 8,
+                            left: 8,
+                            right: 8,
+                        }}
+                    >
+                        <Ionicons
+                            name="close"
+                            size={22}
+                            color="#3F6647"
+                        />
+                    </TouchableOpacity>
+
+                    <Text style={styles.ingredientsTitle}>
+                        Ingredients Found
+                    </Text>
                 <Text style={styles.ingredientsTitle}>
                     Ingredients Found
                 </Text>
@@ -1094,6 +1123,7 @@ const styles = StyleSheet.create({
         fontWeight: '700',
         color: '#3F6647',
         marginBottom: 8,
+        paddingRight: 30,
     },
 
     ingredientRow: {
@@ -1377,5 +1407,22 @@ const styles = StyleSheet.create({
         color: '#B42318',
         fontSize: 16,
         fontWeight: '700',
+    },
+
+    recipeActionButtons: {
+        paddingHorizontal: 24,
+        paddingBottom: 20,
+        paddingTop: 10,
+        backgroundColor: '#FFFFFF',
+
+    
+    },
+
+    closeIngredientsButton: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        zIndex: 10,
+        padding: 4,
     },
 });
