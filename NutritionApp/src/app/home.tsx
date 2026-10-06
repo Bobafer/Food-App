@@ -669,7 +669,7 @@ export function HomeScreen() {
                 animationType="slide"
                 presentationStyle="fullScreen"
                 onRequestClose={closeRecipe}
-            />
+            >
             <SafeAreaView style={styles.recipeModal}>
                 <View style={styles.recipeModalHeader}>
                     <Text style={styles.recipeModalTitle}>
@@ -766,7 +766,7 @@ export function HomeScreen() {
                     </ScrollView>
                 )}
             </SafeAreaView>
-
+            </Modal>
             <ScrollView
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}

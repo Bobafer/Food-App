@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   SafeAreaView,
   View,
@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
 
 // --- Persistence -------------------------------------------------------
 // The key AsyncStorage will file this under. Prefixing with the app name
@@ -119,28 +120,27 @@ export function InventoryScreen() {
   // --- LOAD: runs once, when the screen first mounts ------------------------
   // AsyncStorage only stores strings, so whatever we saved was JSON.stringify'd
   // — meaning we have to JSON.parse it back into a real array here.
-  useEffect(() => {
-    const loadInventory = async () => {
-      try {
-        const storedValue = await AsyncStorage.getItem(INVENTORY_STORAGE_KEY);
-        if (storedValue !== null) {
-          setInventory(JSON.parse(storedValue));
-        }
-        // If storedValue is null, nothing has ever been saved (e.g. first
-        // launch) — we just leave `inventory` as INITIAL_INVENTORY.
-      } catch (error) {
-        console.warn('Failed to load saved inventory:', error);
-        // On failure we also just keep INITIAL_INVENTORY — better to show
-        // something than crash or show a blank screen.
-      } finally {
-        // Whether it succeeded, failed, or found nothing, loading is DONE.
-        setIsInventoryLoaded(true);
-      }
-    };
+  useFocusEffect(
+    useCallback(() => {
+        const loadInventory = async () => {
+            try {
+                const storedValue = await AsyncStorage.getItem(
+                    INVENTORY_STORAGE_KEY
+                );
 
-    loadInventory();
-  }, []); // empty dependency array = runs exactly once, on mount
+                if (storedValue !== null) {
+                    setInventory(JSON.parse(storedValue));
+                }
+            } catch (error) {
+                console.warn('Failed to load saved inventory:', error);
+            } finally {
+                setIsInventoryLoaded(true);
+            }
+        };
 
+        loadInventory();
+    }, [])
+);
   // --- SAVE: runs every time `inventory` changes -----------------------------
   useEffect(() => {
     // Guard: don't save until the initial load above has finished. Without
