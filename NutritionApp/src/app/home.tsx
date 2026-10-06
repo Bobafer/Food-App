@@ -131,6 +131,8 @@ export function HomeScreen() {
         useState<Ingredient[]>([]);
 
     const [recipes, setRecipes] = useState<Recipe[]>([]);
+    const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+    const [recipePopupVisible, setRecipePopupVisible] = useState(false);
     const INVENTORY_STORAGE_KEY = '@PickToPlate:inventory';
     const addIngredientsToInventory = async () => {
     if (ingredients.length === 0) return;
@@ -203,7 +205,40 @@ export function HomeScreen() {
         );
     }
 };
-        
+    const openRecipe = (recipe: Recipe) => {
+        setSelectedRecipe(recipe);
+        setRecipePopupVisible(true);
+    };     
+
+    const closeRecipe = () => {
+        setRecipePopupVisible(false);
+        setSelectedRecipe(null);
+    };
+
+    const deleteRecipe = () => {
+        if (!selectedRecipe) return;
+
+        setRecipes((currentRecipes) =>
+            currentRecipes.filter(
+                (recipe) => recipe.name !== selectedRecipe.name
+            )
+        );
+
+        closeRecipe();
+    }
+
+    const saveRecipe = () => {
+        if (!selectedRecipe) return;
+
+        setRecipes((currentRecipes) =>
+            currentRecipes.filter(
+                (recipe) => recipe.name !== selectedRecipe.name
+            )
+        );
+
+        closeRecipe();
+    }
+
     const imageUriToBase64 = async (imageUri: string | URL | Request) => {
         const response = await fetch(imageUri);
         if (!response.ok) {
@@ -396,7 +431,7 @@ export function HomeScreen() {
                                                 )
                                                 .join(', ')}
 
-                                            Generate 5 different meals that primarily use
+                                            Generate exactly 3 different meals that primarily use
                                             the ingredients listed above.
 
                                             Rules:
@@ -629,6 +664,109 @@ export function HomeScreen() {
                 </TouchableOpacity>
             </Modal>
 
+            <Modal
+                visible={recipePopupVisible}
+                animationType="slide"
+                presentationStyle="fullScreen"
+                onRequestClose={closeRecipe}
+            />
+            <SafeAreaView style={styles.recipeModal}>
+                <View style={styles.recipeModalHeader}>
+                    <Text style={styles.recipeModalTitle}>
+                        Recipe
+                    </Text>
+
+                    <TouchableOpacity
+                        onPress={closeRecipe}
+                        style={styles.closeButton}
+                    >
+                        <Ionicons
+                            name="close"
+                            size={30}
+                            color="#22331F"
+                        />
+                    </TouchableOpacity>
+                </View>
+
+                {selectedRecipe && (
+                    <ScrollView
+                        contentContainerStyle={styles.recipeModalContent}
+                        showsVerticalScrollIndicator={false}
+                    >
+
+                        <Text style={styles.recipeModalRecipeName}>
+                            {selectedRecipe.name}
+                        </Text>
+
+                        <Text style={styles.recipeModalDescription}>
+                            {selectedRecipe.description}
+                        </Text>
+
+                        <Text style={styles.recipeModalSectionTitle}>
+                            Ingredients
+                        </Text>
+
+                        {selectedRecipe.ingredients.map(
+                            (ingredient, index) => (
+                                <Text
+                                    key={`${ingredient}-${index}`}
+                                    style={styles.recipeModalIngredient}
+                                >
+                                    • {ingredient}
+                                </Text>
+                            )
+                        )}
+
+                        <Text style={styles.recipeModalSectionTitle}>
+                            Instructions
+                        </Text>
+
+                        {selectedRecipe.instructions.map(
+                            (instruction, index) => (
+                                <Text
+                                    key={`${selectedRecipe.name}-instruction-${index}`}
+                                    style={styles.recipeModalInstruction}
+                                >
+                                    {index + 1}. {instruction}
+                                </Text>
+                            )
+                        )}
+
+                        <TouchableOpacity
+                            style={styles.saveRecipeButton}
+                            onPress={saveRecipe}
+                            activeOpacity={0.85}
+                        >
+                            <Ionicons
+                                name="bookmark-outline"
+                                size={20}
+                                color="#FFFFFF"
+                            />
+
+                            <Text style={styles.saveRecipeButtonText}>
+                                Save Recipe
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.deleteRecipeButton}
+                            onPress={deleteRecipe}
+                            activeOpacity={0.85}
+                        >
+                            <Ionicons
+                                name="trash-outline"
+                                size={20}
+                                color="#B42318"
+                            />
+
+                            <Text style={styles.deleteRecipeButtonText}>
+                                Delete Recipe
+                            </Text>
+                        </TouchableOpacity>
+                    </ScrollView>
+                )}
+            </SafeAreaView>
+
             <ScrollView
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
@@ -741,48 +879,27 @@ export function HomeScreen() {
                         </Text>
 
                         {recipes.map((recipe, index) => (
-                            <View
+                            <TouchableOpacity
                                 key={`${recipe.name}-${index}`}
                                 style={styles.recipeCard}
+                                activeOpacity={0.85}
+                                onPress={() => openRecipe(recipe)}
                             >
-                                <Text style={styles.recipeName}>
-                                    {recipe.name}
-                                </Text>
 
-                                <Text style={styles.recipeDescription}>
-                                    {recipe.description}
-                                </Text>
+                                <View style={styles.recipeCardText}>
+                                    <Text style={styles.recipeName}>
+                                        {recipe.name}
+                                    </Text>
 
-                                <Text style={styles.recipeSectionTitle}>
-                                    Ingredients
-                                </Text>
+                                    <Text style={styles.recipeDescription}>
+                                        {recipe.description}
+                                    </Text>
 
-                                {recipe.ingredients.map(
-                                    (ingredient, ingredientIndex) => (
-                                        <Text
-                                            key={`${ingredient}-${ingredientIndex}`}
-                                            style={styles.recipeIngredient}
-                                        >
-                                            • {ingredient}
-                                        </Text>
-                                    )
-                                )}
-
-                                <Text style={styles.recipeSectionTitle}>
-                                    Instructions
-                                </Text>
-
-                                {recipe.instructions.map(
-                                    (instruction, instructionIndex) => (
-                                        <Text
-                                            key={`${recipe.name}-step-${instructionIndex}`}
-                                            style={styles.recipeInstruction}
-                                        >
-                                            {instructionIndex + 1}. {instruction}
-                                        </Text>
-                                    )
-                                )}
-                            </View>
+                                    <Text style={styles.recipeTapHint}>
+                                        Tap for recipe →
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
                         ))}
                     </View>
                 )}
@@ -1057,30 +1174,6 @@ const styles = StyleSheet.create({
         marginBottom: 12,
     },
 
-    recipeCard: {
-        width: '100%',
-        backgroundColor: '#F3F6F2',
-        borderRadius: 16,
-        padding: 18,
-        marginBottom: 14,
-        borderWidth: 1,
-        borderColor: '#D5E3D5',
-    },
-
-    recipeName: {
-        fontSize: 19,
-        fontWeight: '700',
-        color: '#22331F',
-        marginBottom: 6,
-    },
-
-    recipeDescription: {
-        fontSize: 14,
-        lineHeight: 20,
-        color: '#5F6B5F',
-        marginBottom: 14,
-    },
-
     recipeSectionTitle: {
         fontSize: 15,
         fontWeight: '700',
@@ -1131,5 +1224,158 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         borderRadius: 16,
         overflow: 'hidden',
+    },
+
+    recipeCard: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        marginBottom: 14,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#D5E3D5',
+    },
+
+    recipeImagePlaceholder: {
+        width: '100%',
+        height: 130,
+        backgroundColor: '#EAF3EA',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    recipeCardText: {
+        padding: 16,
+    },
+
+    recipeName: {
+        fontSize: 19,
+        fontWeight: '700',
+        color: '#22331F',
+        marginBottom: 6,
+    },
+
+    recipeDescription: {
+        fontSize: 14,
+        lineHeight: 20,
+        color: '#5F6B5F',
+    },
+
+    recipeTapHint: {
+        marginTop: 10,
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#5C8A66',
+    },
+
+    recipeModal: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+
+    recipeModalHeader: {
+        height: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E9E3',
+    },
+
+    recipeModalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#3F6647',
+    },
+
+    closeButton: {
+        position: 'absolute',
+        right: 16,
+        padding: 6,
+    },
+
+    recipeModalContent: {
+        padding: 24,
+        paddingBottom: 50,
+    },
+
+    recipeModalImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 18,
+        backgroundColor: '#EAF3EA',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+
+    recipeModalRecipeName: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#22331F',
+        marginBottom: 8,
+    },
+
+    recipeModalDescription: {
+        fontSize: 16,
+        lineHeight: 23,
+        color: '#5F6B5F',
+        marginBottom: 24,
+    },
+
+    recipeModalSectionTitle: {
+        fontSize: 19,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginTop: 12,
+        marginBottom: 10,
+    },
+
+    recipeModalIngredient: {
+        fontSize: 15,
+        lineHeight: 23,
+        color: '#22331F',
+        marginBottom: 4,
+    },
+
+    recipeModalInstruction: {
+        fontSize: 15,
+        lineHeight: 23,
+        color: '#22331F',
+        marginBottom: 10,
+    },
+
+    saveRecipeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#6FA377',
+        borderRadius: 12,
+        paddingVertical: 14,
+        marginTop: 30,
+    },
+
+    saveRecipeButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+
+    deleteRecipeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#FDECEC',
+        borderRadius: 12,
+        paddingVertical: 14,
+        marginTop: 12,
+    },
+
+    deleteRecipeButtonText: {
+        color: '#B42318',
+        fontSize: 16,
+        fontWeight: '700',
     },
 });
