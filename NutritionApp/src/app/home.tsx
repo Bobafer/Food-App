@@ -734,11 +734,7 @@ export function HomeScreen() {
                                     </Text>
                                 )
                             )}
-                        </ScrollView>
-                    )}
-
-                    {/* Fixed buttons at bottom */}
-                    <View style={styles.recipeActionButtons}>
+                        <View style={styles.recipeActionButtons}>
 
                         <TouchableOpacity
                             style={styles.saveRecipeButton}
@@ -773,6 +769,11 @@ export function HomeScreen() {
                         </TouchableOpacity>
 
                     </View>
+                        </ScrollView>
+                    )}
+
+                    {/* Fixed buttons at bottom */}
+                    
 
                 </SafeAreaView>
             </Modal>
