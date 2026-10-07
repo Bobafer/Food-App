@@ -14,9 +14,11 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
 import pizza from '@/assets/Recipe_Images/pizza.jpg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Recipe } from './recipe';
+// ADDED: shared meal-plan data (what you picked in the calendar).
+import { useMealPlan, makeDateKey } from './mealPlanStore';
 
 const RECOMMENDED_RECIPE = {
     name: 'Pizza',
@@ -30,7 +32,7 @@ const MEAL_TIMES = [
     { label: 'Dinner', icon: 'moon-outline', hour: 18 },
 ];
 
-function getClosestMeal(hour: number) {
+function getClosestMeal(hour) {
     let closest = MEAL_TIMES[0];
     let minDistance = Infinity;
 
@@ -82,6 +84,20 @@ export function HomeScreen() {
 
     const selectedZone = TIME_ZONES[selectedZoneIndex];
 
+    // Holds the URI of whatever photo the user just took, so we can preview
+    // it (and, later, hand it off to whatever does the fridge analysis).
+    const [capturedPhoto, setCapturedPhoto] = useState(null);
+
+    // WORKAROUND: while navigation.navigate() is broken (navigation keeps
+    // coming back undefined — see our debugging), this just swaps the
+    // recipe in directly using local state, no navigation library involved.
+    // Trade-off: the bottom tab bar won't highlight "Recipes" while this is
+    // showing, since we're not actually switching tabs. Once the real
+    // navigation bug is fixed, this can go back to navigation.navigate(...).
+    const [showRecipePage, setShowRecipePage] = useState(false);
+
+    // ...and ticks forward every second, so the displayed time and the
+    // meal badge both stay accurate without needing a refresh.
     useEffect(() => {
         const intervalId = setInterval(() => {
             setNow(new Date());
@@ -542,6 +558,19 @@ export function HomeScreen() {
 
 
     // TAKE PHOTO
+    // ADDED: look up what you planned for THIS meal slot on TODAY's date
+    // (date read in the selected timezone, same as the clock). If something
+    // is planned, the card shows it as "Recipe coming up"; otherwise it
+    // falls back to the normal recommendation.
+    const { getMeal } = useMealPlan();
+    const todayKey = makeDateKey(now, selectedZone.zone);
+    const plannedMeal = getMeal(todayKey, closestMeal.label);
+    const cardRecipe = plannedMeal ?? RECOMMENDED_RECIPE;
+    const cardLabel = plannedMeal ? 'Recipe coming up' : 'Recommended Recipe';
+
+    // Requests camera permission (if not already granted), then opens the
+    // native camera. If the user takes a photo (doesn't cancel), its URI
+    // gets stored in capturedPhoto.
     const handleTakePhoto = async () => {
         const { status } =
             await ImagePicker.requestCameraPermissionsAsync();
@@ -567,7 +596,35 @@ export function HomeScreen() {
         }
     };
 
-    return (
+    // Switches to showing the Recipe component in place, via local state.
+    const handleOpenRecommendedRecipe = () => {
+        setShowRecipePage(true);
+    };
+
+    // While showRecipePage is true, render Recipe instead of the normal
+    // Home content — with a simple back button (also just local state, no
+    // navigation library) to return to Home.
+    if (showRecipePage) {
+        return (
+            <SafeAreaView style={styles.safeArea}>
+                <StatusBar barStyle="dark-content" />
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        onPress={() => setShowRecipePage(false)}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={styles.recipeBackButton}
+                    >
+                        <Ionicons name="chevron-back" size={22} color="#3F6647" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Recipe</Text>
+                    <View style={{ width: 22 }} />
+                </View>
+                <Recipe autoOpenInstructions />
+            </SafeAreaView>
+        );
+    }
+
+    return(
         <SafeAreaView style={styles.safeArea}>
             <StatusBar barStyle="dark-content" />
 
@@ -825,6 +882,25 @@ export function HomeScreen() {
                             size="small"
                             color="#3F6647"
                         />
+              {/* Recommended recipe — replaces the old "Analyze your
+                  ingredients in seconds" caption. Tapping it navigates to the
+                  Recipes tab. Currently always the pizza recipe
+                  (RECOMMENDED_RECIPE above); once AI recommendations exist,
+                  that constant is the only thing that needs to change. */}
+              <Text style={styles.recommendedLabel}>{cardLabel}</Text>
+              <TouchableOpacity
+                  style={styles.recommendedCard}
+                  activeOpacity={0.85}
+                  onPress={handleOpenRecommendedRecipe}
+              >
+                  <Image source={cardRecipe.image} style={styles.recommendedImage} />
+                  <View style={styles.recommendedTextWrap}>
+                      <Text style={styles.recommendedTitle}>{cardRecipe.name}</Text>
+                      <Text style={styles.recommendedDescription}>{cardRecipe.description}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#9AA39C" />
+              </TouchableOpacity>
+          </ScrollView>
 
                         <Text style={styles.analyzingText}>
                             Analyzing your fridge...
