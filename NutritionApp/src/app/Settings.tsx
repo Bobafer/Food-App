@@ -4,6 +4,8 @@ import {GoogleGenAI} from "@google/genai";
 import { Asset } from "expo-asset";
 import {File} from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+// ADDED: the "please wait" popup shown while the AI is working.
+import { LoadingOverlay } from "./LoadingOverlay";
 
 const ai = new GoogleGenAI({
   apiKey: process.env.EXPO_PUBLIC_AI_API_KEY
@@ -122,7 +124,9 @@ const SettingsScreen = () => {
   const [selectedMacros2, setSelectedMacros2] = useState<string | null>(null);
   const [selectedMacros3, setSelectedMacros3] = useState<string | null>(null);
   const [calorieGoal, setCalorieGoal] = useState(2000);
-  const [saved, setSaved] = useState(false);  
+  const [saved, setSaved] = useState(false);
+  // ADDED: true while the AI is looking at the photo and coming up with recipes.
+  const [isAnalyzing, setIsAnalyzing] = useState(false);  
 
   useEffect(() => {
     const loadSettings = async () => {
@@ -156,7 +160,9 @@ const SettingsScreen = () => {
   };
 
   return (
-   <SafeAreaView style={styles.safeArea}> 
+   <SafeAreaView style={styles.safeArea}>
+   {/* ADDED: popup with a spinner, visible only while isAnalyzing is true */}
+   <LoadingOverlay visible={isAnalyzing} message="Finding recipes you can make..." /> 
    <View style={styles.header}>
   <View style={{ width: 22 }} />
   <Text style={styles.headerTitle}>Settings</Text>
@@ -391,6 +397,7 @@ const SettingsScreen = () => {
 
         {/*API Key Test Button*/}
         <Pressable onPress={async () => {
+          setIsAnalyzing(true); // ADDED: show the loading popup
           try {
             console.log("CALLING AI...");
 
@@ -411,8 +418,11 @@ const SettingsScreen = () => {
               "AI Error",
               error instanceof Error ? error.message : String(error)
             );
-         }}
-        }
+         } finally {
+            // ADDED: always hide the popup, whether the AI call worked or failed
+            setIsAnalyzing(false);
+          }
+        }}
         >
           <Text>API Key Test</Text>
         </Pressable>
