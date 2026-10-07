@@ -96,4 +96,10 @@ app.post('/api/generate', requireAuth, geminiLimiter, async (req, res) => {
   }
 });
 
+app.get("/", (req, res) => {
+  res.send("Gemini proxy is running");
+});
+
+
+
 app.listen(PORT, () => console.log(`Gemini proxy running on :${PORT}`));
