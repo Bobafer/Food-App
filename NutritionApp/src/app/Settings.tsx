@@ -14,6 +14,44 @@ const ai = new GoogleGenAI({
 const fridgeImage = require("@/assets/Recipe_Images/fridge.jpg");
 
 const callAi = async () => {
+  // ADDED: read the user's saved restrictions and turn them into extra text
+  // for the AI. Stays an empty string if nothing is saved or selected.
+  let restrictionsText = "";
+  try {
+    const rawSettings = await AsyncStorage.getItem("userSettings");
+    if (rawSettings) {
+      const saved = JSON.parse(rawSettings);
+      const rules: string[] = [];
+
+      if (saved.allergies && saved.allergies.length > 0) {
+        rules.push(
+          `Allergies/intolerances: ${saved.allergies.join(", ")}. Never suggest a recipe that contains any of these ingredients.`
+        );
+      }
+      if (saved.dietaryRestriction) {
+        rules.push(`Diet: ${saved.dietaryRestriction}. Every recipe must fit this diet.`);
+      }
+      if (saved.protein) rules.push(`Protein intake goal: ${saved.protein}.`);
+      if (saved.sugar) rules.push(`Sugar intake goal: ${saved.sugar}.`);
+      if (saved.carbs) rules.push(`Carb intake goal: ${saved.carbs}.`);
+      if (saved.calorieGoal && saved.calorieGoal > 0) {
+        rules.push(
+          `Daily calorie goal: about ${saved.calorieGoal} kcal, so keep each suggested meal reasonable for that.`
+        );
+      }
+
+      if (rules.length > 0) {
+        restrictionsText =
+          "The user has these restrictions. Follow them strictly:\n- " +
+          rules.join("\n- ") +
+          "\n\nIf a recipe can't be made within these restrictions using what's in the fridge, don't suggest it.";
+      }
+    }
+  } catch (error) {
+    console.log("COULD NOT READ SETTINGS FOR AI:", error);
+  }
+  console.log("RESTRICTIONS SENT TO AI:", restrictionsText || "(none)");
+
   const asset = Asset.fromModule(fridgeImage);
 
   await asset.downloadAsync();
@@ -46,6 +84,8 @@ const callAi = async () => {
           {
             text: "Look inside this fridge and suggest 5 recipes I can make.",
           },
+          // ADDED: the restrictions, sent as an extra text part (skipped if empty)
+          ...(restrictionsText ? [{ text: restrictionsText }] : []),
           {
             inlineData: {
               mimeType: "image/jpeg",
@@ -149,6 +189,52 @@ const SettingsScreen = () => {
         loadSettings();
       }, []);
 
+  // ADDED: auto-save. Writes every change to the phone right away, so nothing
+  // is lost if the app is closed without pressing Save.
+  //
+  // settingsChecked stays false until the saved settings have been read once,
+  // so the blank starting defaults can never overwrite real saved data.
+  const [settingsChecked, setSettingsChecked] = useState(false);
+
+  useEffect(() => {
+    const checkSavedSettings = async () => {
+      try {
+        await AsyncStorage.getItem("userSettings");
+      } catch (error) {
+        console.log("SETTINGS CHECK FAILED:", error);
+      } finally {
+        setSettingsChecked(true);
+      }
+    };
+
+    checkSavedSettings();
+  }, []);
+
+  useEffect(() => {
+    if (!settingsChecked) return;
+
+    const settingsToSave = {
+      allergies: selectedAllergies,
+      dietaryRestriction: selectedDiet,
+      protein: selectedMacros1,
+      sugar: selectedMacros2,
+      carbs: selectedMacros3,
+      calorieGoal: calorieGoal,
+    };
+
+    AsyncStorage.setItem("userSettings", JSON.stringify(settingsToSave)).catch((error) =>
+      console.log("AUTO-SAVE FAILED:", error)
+    );
+  }, [
+    settingsChecked,
+    selectedAllergies,
+    selectedDiet,
+    selectedMacros1,
+    selectedMacros2,
+    selectedMacros3,
+    calorieGoal,
+  ]);
+
   const toggleAllergy = (allergy: string) => {
     if (selectedAllergies.includes(allergy)) {
       setSelectedAllergies(
@@ -161,7 +247,7 @@ const SettingsScreen = () => {
 
   return (
    <SafeAreaView style={styles.safeArea}>
-   {/* ADDED: popup with a spinner, visible only while isAnalyzing is true */}
+   {/* ADDED: popup with a message, visible only while isAnalyzing is true */}
    <LoadingOverlay visible={isAnalyzing} message="Finding recipes you can make..." /> 
    <View style={styles.header}>
   <View style={{ width: 22 }} />
@@ -396,7 +482,7 @@ const SettingsScreen = () => {
   </Pressable>
 
         {/*API Key Test Button*/}
-        <Pressable onPress={async () => {
+        <Pressable disabled={isAnalyzing} style={styles.testButton} onPress={async () => {
           setIsAnalyzing(true); // ADDED: show the loading popup
           try {
             console.log("CALLING AI...");
@@ -424,7 +510,7 @@ const SettingsScreen = () => {
           }
         }}
         >
-          <Text>API Key Test</Text>
+          <Text>{isAnalyzing ? 'Finding recipes...' : 'API Key Test'}</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -433,6 +519,13 @@ const SettingsScreen = () => {
   };
 
 const styles = StyleSheet.create({
+  // ADDED: lays out the test button.
+  testButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginTop: 16,
+  },
   container: {
     padding: 20,
   },

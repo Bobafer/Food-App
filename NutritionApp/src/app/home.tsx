@@ -120,8 +120,7 @@ export function HomeScreen() {
     const closestMeal = getClosestMeal(currentHour);
 
     
-    const [capturedPhoto, setCapturedPhoto] =
-        useState<string | null>(null);
+    //const [capturedPhoto, setCapturedPhoto] =
     const [analyzing, setAnalyzing] =
         useState<boolean>(false);
     
@@ -879,28 +878,9 @@ export function HomeScreen() {
                 {analyzing && (
                     <View style={styles.analyzingContainer}>
                         <ActivityIndicator
-                            size="small"
-                            color="#3F6647"
+                            size='small'
+                            color='#3F6647'
                         />
-              {/* Recommended recipe — replaces the old "Analyze your
-                  ingredients in seconds" caption. Tapping it navigates to the
-                  Recipes tab. Currently always the pizza recipe
-                  (RECOMMENDED_RECIPE above); once AI recommendations exist,
-                  that constant is the only thing that needs to change. */}
-              <Text style={styles.recommendedLabel}>{cardLabel}</Text>
-              <TouchableOpacity
-                  style={styles.recommendedCard}
-                  activeOpacity={0.85}
-                  onPress={handleOpenRecommendedRecipe}
-              >
-                  <Image source={cardRecipe.image} style={styles.recommendedImage} />
-                  <View style={styles.recommendedTextWrap}>
-                      <Text style={styles.recommendedTitle}>{cardRecipe.name}</Text>
-                      <Text style={styles.recommendedDescription}>{cardRecipe.description}</Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={18} color="#9AA39C" />
-              </TouchableOpacity>
-          </ScrollView>
 
                         <Text style={styles.analyzingText}>
                             Analyzing your fridge...
@@ -931,9 +911,6 @@ export function HomeScreen() {
                     <Text style={styles.ingredientsTitle}>
                         Ingredients Found
                     </Text>
-                <Text style={styles.ingredientsTitle}>
-                    Ingredients Found
-                </Text>
 
                 {ingredients.map((ingredient, index) => (
                     <View
@@ -1030,9 +1007,24 @@ export function HomeScreen() {
                     </Text>
                 </View>
 
-                <Text style={styles.caption}>
-                    Analyze your ingredients in seconds
-                </Text>
+                {/* Recommended recipe — replaces the old "Analyze your
+                    ingredients in seconds" caption. Shows the recipe you
+                    planned for this meal time ("Recipe coming up"), or falls
+                    back to RECOMMENDED_RECIPE above ("Recommended Recipe").
+                    Tapping it opens the recipe page. */}
+                <Text style={styles.recommendedLabel}>{cardLabel}</Text>
+                <TouchableOpacity
+                    style={styles.recommendedCard}
+                    activeOpacity={0.85}
+                    onPress={handleOpenRecommendedRecipe}
+                >
+                    <Image source={cardRecipe.image} style={styles.recommendedImage} />
+                    <View style={styles.recommendedTextWrap}>
+                        <Text style={styles.recommendedTitle}>{cardRecipe.name}</Text>
+                        <Text style={styles.recommendedDescription}>{cardRecipe.description}</Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color="#9AA39C" />
+                </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );
@@ -1501,5 +1493,57 @@ const styles = StyleSheet.create({
         right: 10,
         zIndex: 10,
         padding: 4,
+    },
+
+    // ADDED: these styles were missing, so the back button on the recipe
+    // page and the whole recommended card were unstyled.
+    recipeBackButton: {
+        position: 'absolute',
+        left: 16,
+        top: 16,
+    },
+
+    recommendedLabel: {
+        width: '100%',
+        marginTop: 24,
+        marginBottom: 8,
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#9AA39C',
+        textTransform: 'uppercase',
+        letterSpacing: 0.4,
+    },
+
+    recommendedCard: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#F3F6F2',
+        borderRadius: 16,
+        padding: 10,
+        gap: 12,
+    },
+
+    recommendedImage: {
+        width: 56,
+        height: 56,
+        borderRadius: 12,
+        backgroundColor: '#E5E5E5',
+    },
+
+    recommendedTextWrap: {
+        flex: 1,
+    },
+
+    recommendedTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#22331F',
+    },
+
+    recommendedDescription: {
+        fontSize: 12,
+        color: '#5F6B5F',
+        marginTop: 2,
     },
 });
