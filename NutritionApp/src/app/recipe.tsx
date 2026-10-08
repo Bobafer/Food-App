@@ -1,114 +1,255 @@
-import {View, Text, Image, StyleSheet, TouchableOpacity, SafeAreaView, ScrollView} from 'react-native';
-import pizza from '@/assets/Recipe_Images/pizza.jpg';
-import React, {useState} from 'react';
-import {Portion} from './portion';
-import {Instructions} from './instructions'
 
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+    SafeAreaView,
+    ScrollView,
+} from 'react-native';
+import React, { useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+import { Portion } from './portion';
 
+type SavedRecipe = {
+    name: string;
+    description: string;
+    ingredients: string[];
+    instructions: string[];
+};
 
-// ADDED: autoOpenInstructions — when true, the Portion section (and
-// Instructions inside it) start already expanded, instead of requiring a tap.
-// Home's "Recommended Recipe" card triggers this by navigating here with
-// navigation.navigate('RecipesStack', { screen: 'Recipes', params: { autoOpenInstructions: true } }),
-// so React Navigation hands it to us as route.params. The plain
-// `autoOpenInstructions` prop is kept too, so <Recipe autoOpenInstructions />
-// still works if this is ever rendered directly instead of as a screen.
-export const RecipeScreen = ({ autoOpenInstructions = false, route }) => {
+type RecipeScreenProps = {
+    autoOpenInstructions?: boolean;
+    route?: {
+        params?: {
+            autoOpenInstructions?: boolean;
+        };
+    };
+};
 
-    const shouldAutoOpen = route?.params?.autoOpenInstructions ?? autoOpenInstructions;
-    const [showPortion, setShowPortion] = useState(shouldAutoOpen);
+const SAVED_RECIPES_STORAGE_KEY = '@PickToPlate:savedRecipes';
 
-    return(
-        // ADDED: SafeAreaView + ScrollView wrapper so this fits the screen
-        // properly and scrolls instead of overflowing when Portion/Instructions
-        // expand underneath it.
-        <SafeAreaView style={styles.screen}>
+export const RecipeScreen = ({
+    autoOpenInstructions = false,
+    route,
+}: RecipeScreenProps) => {
+    const shouldAutoOpen =
+        route?.params?.autoOpenInstructions ?? autoOpenInstructions;
+
+    const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
+    const [expandedRecipes, setExpandedRecipes] = useState<
+        Record<string, boolean>
+    >({});
+
+    const loadSavedRecipes = useCallback(async () => {
+        try {
+            const storedRecipes = await AsyncStorage.getItem(
+                SAVED_RECIPES_STORAGE_KEY
+            );
+
+            const parsedRecipes: SavedRecipe[] = storedRecipes
+                ? JSON.parse(storedRecipes)
+                : [];
+
+            setSavedRecipes(parsedRecipes);
+
+            if (shouldAutoOpen && parsedRecipes.length > 0) {
+                const firstKey = `${parsedRecipes[0].name}-0`;
+
+                setExpandedRecipes((current) => ({
+                    ...current,
+                    [firstKey]: true,
+                }));
+            }
+        } catch (error) {
+            console.error('Failed to load saved recipes:', error);
+        }
+    }, [shouldAutoOpen]);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadSavedRecipes();
+        }, [loadSavedRecipes])
+    );
+
+    const toggleRecipe = (key: string) => {
+        setExpandedRecipes((current) => ({
+            ...current,
+            [key]: !(current[key] ?? false),
+        }));
+    };
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
             <ScrollView
-                contentContainerStyle={styles.scrollContent}
+                contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
             >
-                <TouchableOpacity
-                style={styles.container}
-                onPress={() => setShowPortion(!showPortion)}
-                activeOpacity={0.8}>
-                    <Image source ={pizza} style ={styles.image}></Image>
+                <View style={styles.recipesContainer}>
+                    <Text style={styles.recipesTitle}>
+                        Saved Recipes
+                    </Text>
 
-                <View style={styles.textWrapper}>
-                    <Text style={styles.recpieTitle}>Pizza</Text>
-                    <Text style={styles.recipeDescription}>Italian bread with sauce</Text>
-                    <View style={styles.totalContainer}>
-                        <Text style={styles.calorieTitle}>Total Calories:</Text>
-                        <Text style={styles.totalValue}>1200g?</Text>
-                    </View>
+                    {savedRecipes.length === 0 ? (
+                        <View style={styles.emptyContainer}>
+                            <Ionicons
+                                name="bookmark-outline"
+                                size={36}
+                                color="#5C8A66"
+                            />
+
+                            <Text style={styles.emptyTitle}>
+                                No Saved Recipes Yet
+                            </Text>
+
+                            <Text style={styles.emptyText}>
+                                Scan your fridge, generate recipes, and
+                                tap Save Recipe to keep them here.
+                            </Text>
+                        </View>
+                    ) : (
+                        savedRecipes.map((recipe, index) => {
+                            const key = `${recipe.name}-${index}`;
+                            const isExpanded =
+                                expandedRecipes[key] ?? false;
+
+                            return (
+                                <View
+                                    key={key}
+                                    style={styles.recipeCard}
+                                >
+                                    <TouchableOpacity
+                                        activeOpacity={0.85}
+                                        onPress={() => toggleRecipe(key)}
+                                    >
+                                        <View style={styles.recipeCardText}>
+                                            <Text style={styles.recipeName}>
+                                                {recipe.name}
+                                            </Text>
+
+                                            <Text style={styles.recipeDescription}>
+                                                {recipe.description}
+                                            </Text>
+
+                                            <Text style={styles.recipeTapHint}>
+                                                {isExpanded
+                                                    ? 'Tap to close ↑'
+                                                    : 'Tap for recipe →'}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+
+                                    {isExpanded && (
+                                        <View style={styles.recipeDetails}>
+                                            <Portion
+                                                recipe={recipe}
+                                                autoOpenInstructions={
+                                                    shouldAutoOpen
+                                                }
+                                            />
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        })
+                    )}
                 </View>
-
-                {showPortion && <Portion autoOpenInstructions={shouldAutoOpen} />}
-            </TouchableOpacity>
             </ScrollView>
         </SafeAreaView>
     );
-
 };
 
 const styles = StyleSheet.create({
-    // ADDED: screen and scrollContent wrap the existing card so it's centered,
-    // padded, and scrollable instead of taking up the raw screen unconstrained.
-    screen: {
+    safeArea: {
         flex: 1,
         backgroundColor: '#FFFFFF',
     },
-    scrollContent: {
+
+    content: {
+        width: '100%',
+        maxWidth: 480,
+        alignSelf: 'center',
+        paddingHorizontal: 24,
         alignItems: 'center',
-        paddingVertical: 20,
+        paddingTop: 28,
         paddingBottom: 40,
     },
-    container: {
-        borderRadius: 15,
-        backgroundColor: '#fff',
-        boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
-        
-        justifyContent: 'flex-start',
+
+    recipesContainer: {
+        width: '100%',
+        marginTop: 20,
+    },
+
+    recipesTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginBottom: 12,
+    },
+
+    recipeCard: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        marginBottom: 14,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#D5E3D5',
+    },
+
+    recipeCardText: {
+        padding: 16,
+    },
+
+    recipeName: {
+        fontSize: 19,
+        fontWeight: '700',
+        color: '#22331F',
+        marginBottom: 6,
+    },
+
+    recipeDescription: {
+        fontSize: 14,
+        lineHeight: 20,
+        color: '#5F6B5F',
+    },
+
+    recipeTapHint: {
+        marginTop: 10,
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#5C8A66',
+    },
+
+    recipeDetails: {
+        paddingHorizontal: 16,
+        paddingBottom: 16,
+    },
+
+    emptyContainer: {
+        width: '100%',
+        backgroundColor: '#EAF3EA',
+        borderRadius: 16,
+        padding: 24,
         alignItems: 'center',
+        marginTop: 8,
     },
-    image:{
-        borderTopRightRadius: '24px',
-        borderTopLeftRadius: '24px',
-        width:250,
-        height:200,
+
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginTop: 12,
+        marginBottom: 8,
+        textAlign: 'center',
     },
-    recpieTitle:{
-        paddingLeft: 16,
-        padding: 4,
-        fontSize:20,
-        fontWeight: 'bold',
-    },
-    recipeDescription:{
+
+    emptyText: {
         fontSize: 14,
-        paddingLeft:16,
-        padding: 4,
+        lineHeight: 21,
+        color: '#5F6B5F',
+        textAlign: 'center',
     },
-    calorieTitle:{
-        padding:4,
-        paddingLeft:16,
-        fontSize:14,
-        fontWeight: 'bold',
-        alignSelf:'flex-start'
-    },
-    totalContainer: {
-        flexDirection:'row',
-        alignItems:'baseline',
-        justifyContent: 'center'
-        
-    },
-    totalValue: {
-        padding: 4,
-        paddingLeft:16,
-        fontSize: 14,
-        marginLeft: -12,
-        marginBottom: 4,
-    },
-    textWrapper: {
-        width: 250, 
-        alignItems: 'flex-start'
-    }
 });
