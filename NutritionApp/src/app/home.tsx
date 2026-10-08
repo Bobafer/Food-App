@@ -14,7 +14,6 @@ import {
 } from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useNavigation } from '@react-navigation/native';
 import pizza from '@/assets/Recipe_Images/pizza.jpg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
