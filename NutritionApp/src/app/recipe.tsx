@@ -1,4 +1,3 @@
-
 import {
     View,
     Text,
@@ -11,7 +10,6 @@ import React, { useState, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
-import { Portion } from './portion';
 
 type SavedRecipe = {
     name: string;
@@ -19,6 +17,8 @@ type SavedRecipe = {
     ingredients: string[];
     instructions: string[];
 };
+
+const SAVED_RECIPES_STORAGE_KEY = '@PickToPlate:savedRecipes';
 
 type RecipeScreenProps = {
     autoOpenInstructions?: boolean;
@@ -29,8 +29,6 @@ type RecipeScreenProps = {
     };
 };
 
-const SAVED_RECIPES_STORAGE_KEY = '@PickToPlate:savedRecipes';
-
 export const RecipeScreen = ({
     autoOpenInstructions = false,
     route,
@@ -40,6 +38,9 @@ export const RecipeScreen = ({
 
     const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
     const [expandedRecipes, setExpandedRecipes] = useState<
+        Record<string, boolean>
+    >({});
+    const [showInstructions, setShowInstructions] = useState<
         Record<string, boolean>
     >({});
 
@@ -62,6 +63,11 @@ export const RecipeScreen = ({
                     ...current,
                     [firstKey]: true,
                 }));
+
+                setShowInstructions((current) => ({
+                    ...current,
+                    [firstKey]: true,
+                }));
             }
         } catch (error) {
             console.error('Failed to load saved recipes:', error);
@@ -77,7 +83,14 @@ export const RecipeScreen = ({
     const toggleRecipe = (key: string) => {
         setExpandedRecipes((current) => ({
             ...current,
-            [key]: !(current[key] ?? false),
+            [key]: !current[key],
+        }));
+    };
+
+    const toggleInstructions = (key: string) => {
+        setShowInstructions((current) => ({
+            ...current,
+            [key]: !current[key],
         }));
     };
 
@@ -112,8 +125,9 @@ export const RecipeScreen = ({
                     ) : (
                         savedRecipes.map((recipe, index) => {
                             const key = `${recipe.name}-${index}`;
-                            const isExpanded =
-                                expandedRecipes[key] ?? false;
+                            const isExpanded = expandedRecipes[key] ?? false;
+                            const instructionsOpen =
+                                showInstructions[key] ?? false;
 
                             return (
                                 <View
@@ -143,12 +157,53 @@ export const RecipeScreen = ({
 
                                     {isExpanded && (
                                         <View style={styles.recipeDetails}>
-                                            <Portion
-                                                recipe={recipe}
-                                                autoOpenInstructions={
-                                                    shouldAutoOpen
+                                            <Text style={styles.recipeSectionTitle}>
+                                                Ingredients
+                                            </Text>
+
+                                            {(recipe.ingredients ?? []).map(
+                                                (ingredient, ingredientIndex) => (
+                                                    <Text
+                                                        key={`${ingredient}-${ingredientIndex}`}
+                                                        style={styles.recipeIngredient}
+                                                    >
+                                                        {'• '}{ingredient}
+                                                    </Text>
+                                                )
+                                            )}
+
+                                            <TouchableOpacity
+                                                style={styles.detailsButton}
+                                                activeOpacity={0.85}
+                                                onPress={() =>
+                                                    toggleInstructions(key)
                                                 }
-                                            />
+                                            >
+                                                <Text style={styles.detailsButtonText}>
+                                                    {instructionsOpen
+                                                        ? 'Hide Instructions'
+                                                        : 'View Instructions'}
+                                                </Text>
+                                            </TouchableOpacity>
+
+                                            {instructionsOpen && (
+                                                <View>
+                                                    <Text style={styles.recipeSectionTitle}>
+                                                        Instructions
+                                                    </Text>
+
+                                                    {(recipe.instructions ?? []).map(
+                                                        (instruction, instructionIndex) => (
+                                                            <Text
+                                                                key={`${key}-instruction-${instructionIndex}`}
+                                                                style={styles.recipeInstruction}
+                                                            >
+                                                                {instructionIndex + 1}. {instruction}
+                                                            </Text>
+                                                        )
+                                                    )}
+                                                </View>
+                                            )}
                                         </View>
                                     )}
                                 </View>
@@ -226,6 +281,43 @@ const styles = StyleSheet.create({
     recipeDetails: {
         paddingHorizontal: 16,
         paddingBottom: 16,
+    },
+
+    recipeSectionTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginTop: 6,
+        marginBottom: 5,
+    },
+
+    recipeIngredient: {
+        fontSize: 14,
+        lineHeight: 21,
+        color: '#22331F',
+        marginLeft: 4,
+    },
+
+    recipeInstruction: {
+        fontSize: 14,
+        lineHeight: 21,
+        color: '#22331F',
+        marginBottom: 8,
+    },
+
+    detailsButton: {
+        backgroundColor: '#EAF3EA',
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        alignSelf: 'flex-start',
+        marginTop: 12,
+    },
+
+    detailsButtonText: {
+        color: '#3F6647',
+        fontSize: 14,
+        fontWeight: '700',
     },
 
     emptyContainer: {

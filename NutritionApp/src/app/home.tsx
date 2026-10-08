@@ -229,57 +229,57 @@ export function HomeScreen() {
 
     const SAVED_RECIPES_STORAGE_KEY = '@PickToPlate:savedRecipes';
 
-    const saveRecipe = async () => {
-        if (!selectedRecipe) return;
+const saveRecipe = async () => {
+    if (!selectedRecipe) return;
 
-        try {
-            const storedRecipes = await AsyncStorage.getItem(
-                SAVED_RECIPES_STORAGE_KEY
+    try {
+        const storedRecipes = await AsyncStorage.getItem(
+            SAVED_RECIPES_STORAGE_KEY
+        );
+
+        const savedRecipes: Recipe[] = storedRecipes
+            ? JSON.parse(storedRecipes)
+            : [];
+
+        // Don't save the same recipe twice
+        const alreadySaved = savedRecipes.some(
+            (recipe) =>
+                recipe.name.trim().toLowerCase() ===
+                selectedRecipe.name.trim().toLowerCase()
+        );
+
+        if (!alreadySaved) {
+            const updatedRecipes = [
+                ...savedRecipes,
+                selectedRecipe,
+            ];
+
+            await AsyncStorage.setItem(
+                SAVED_RECIPES_STORAGE_KEY,
+                JSON.stringify(updatedRecipes)
             );
-
-            const savedRecipes: Recipe[] = storedRecipes
-                ? JSON.parse(storedRecipes)
-                : [];
-
-            // Don't save the same recipe twice
-            const alreadySaved = savedRecipes.some(
-                (recipe) =>
-                    recipe.name.trim().toLowerCase() ===
-                    selectedRecipe.name.trim().toLowerCase()
-            );
-
-            if (!alreadySaved) {
-                const updatedRecipes = [
-                    ...savedRecipes,
-                    selectedRecipe,
-                ];
-
-                await AsyncStorage.setItem(
-                    SAVED_RECIPES_STORAGE_KEY,
-                    JSON.stringify(updatedRecipes)
-                );
-
-                Alert.alert(
-                    'Recipe Saved',
-                    `${selectedRecipe.name} was saved to your recipes.`
-                );
-            } else {
-                Alert.alert(
-                    'Already Saved',
-                    `${selectedRecipe.name} is already in your recipes.`
-                );
-            }
-
-            closeRecipe();
-        } catch (error) {
-            console.error('Failed to save recipe:', error);
 
             Alert.alert(
-                'Could not save recipe',
-                'Something went wrong while saving this recipe.'
+                'Recipe Saved',
+                `${selectedRecipe.name} was saved to your recipes.`
+            );
+        } else {
+            Alert.alert(
+                'Already Saved',
+                `${selectedRecipe.name} is already in your recipes.`
             );
         }
-    };
+
+        closeRecipe();
+    } catch (error) {
+        console.error('Failed to save recipe:', error);
+
+        Alert.alert(
+            'Could not save recipe',
+            'Something went wrong while saving this recipe.'
+        );
+    }
+};
 
     const imageUriToBase64 = async (imageUri: string | URL | Request) => {
         const response = await fetch(imageUri);
