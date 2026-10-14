@@ -1,114 +1,102 @@
-import {View, Text,  StyleSheet, Button} from 'react-native';
-import React from 'react';
-export const Portion = () => {
-    return(
+
+import {
+    View,
+    Text,
+    StyleSheet,
+    TouchableOpacity,
+} from 'react-native';
+import React, { useState } from 'react';
+import { Instructions } from './instructions';
+
+type Recipe = {
+    name: string;
+    description: string;
+    ingredients: string[];
+    instructions: string[];
+};
+
+type PortionProps = {
+    autoOpenInstructions?: boolean;
+    recipe?: Recipe;
+};
+
+export const Portion = ({
+    autoOpenInstructions = false,
+    recipe,
+}: PortionProps) => {
+    const [showInstructions, setShowInstructions] =
+        useState(autoOpenInstructions);
+
+    return (
         <View style={styles.container}>
-            <View style={styles.textWrapper}>
-                <Text style={styles.portionTitle}>Portion Sizes</Text>
-                <View style={styles.line}></View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionCalories}>Calories:</Text>
-                    <Text style ={styles.totalValue}>400 calories</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionProtien}>Protien:</Text>
-                    <Text style={styles.totalValue}> 10 grams</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionCarbs}>Carbs:</Text>
-                    <Text style={styles.totalValue}>20 grams</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionFats}>Fat:</Text>
-                    <Text style={styles.totalValue}>50 grams</Text>
-                </View>
-                <View style={styles.totalContainer}>
-                    <Text style={styles.portionEggs}>Eggs:</Text>
-                    <Text style={styles.totalValue}>1</Text>
-                </View>
-            </View>
-            <View>
-                <Button 
-                color = '#90EE90'
-                title='Details'
+            <Text style={styles.title}>Ingredients</Text>
+
+            {(recipe?.ingredients ?? []).map(
+                (ingredient, index) => (
+                    <Text
+                        key={`${ingredient}-${index}`}
+                        style={styles.ingredient}
+                    >
+                        {'• '}{ingredient}
+                    </Text>
+                )
+            )}
+
+            <TouchableOpacity
+                style={styles.button}
+                activeOpacity={0.85}
+                onPress={() =>
+                    setShowInstructions((current) => !current)
+                }
+            >
+                <Text style={styles.buttonText}>
+                    {showInstructions
+                        ? 'Hide Instructions'
+                        : 'View Instructions'}
+                </Text>
+            </TouchableOpacity>
+
+            {showInstructions && (
+                <Instructions
+                    instructions={recipe?.instructions ?? []}
                 />
-               
-            </View>
-        
-        
+            )}
         </View>
     );
 };
 
-
 const styles = StyleSheet.create({
     container: {
-        borderRadius: "15px",
-        //boxShadow: "0 4px 8px 0 rgba(0,0,0,0.2)",
-        justifyContent: 'flex-start',
-        alignItems: 'center',
-        marginTop: 5,
-        paddingBottom:10
-    },
-     textWrapper: {
-        width: 250, 
-        alignItems: 'flex-start'
-    },
-    portionTitle: {
-        fontSize:14,
-        paddingLeft:16,
-        padding:3,
-        fontWeight: 'bold'
-    },
-    portionCalories: {
-        fontSize:14,
-        paddingLeft:16,
-        padding:4,
-        fontWeight: 'bold'
-    },
-    portionProtien:{
-        fontSize:13,
-        paddingLeft:16,
-        padding:4,
-        fontWeight: 'bold'
-    },
-    portionCarbs:{
-        fontSize:14,
-        paddingLeft:16,
-        padding:4,
-        fontWeight: 'bold'
-    },
-    portionFats:{
-        fontSize:14,
-        padding:4,
-        paddingLeft:16,
-        fontWeight: 'bold'
-    },
-    portionEggs:{
-        fontSize:14,
-        paddingLeft:16,
-        padding:4,
-        fontWeight: 'bold'
-    },
-    totalValue: {
-        padding: 4,
-        paddingLeft:16,
-        fontSize: 14,
-        marginLeft: -12,
-        marginBottom: 4,
-    },
-     totalContainer: {
-        flexDirection:'row',
-        alignItems:'baseline',
-        justifyContent: 'center'
-        
-    },
-    line: {
-        padding:0,
-        height:1,
         width: '100%',
-        backgroundColor: '#000000',
-        marginVertical: 10,
-    }
+    },
 
-})
+    title: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginTop: 6,
+        marginBottom: 5,
+    },
+
+    ingredient: {
+        fontSize: 14,
+        lineHeight: 21,
+        color: '#22331F',
+        marginLeft: 4,
+    },
+
+    button: {
+        backgroundColor: '#EAF3EA',
+        borderRadius: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 14,
+        alignSelf: 'flex-start',
+        marginTop: 12,
+    },
+
+    buttonText: {
+        color: '#3F6647',
+        fontSize: 14,
+        fontWeight: '700',
+    },
+});

@@ -1,205 +1,1469 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
     SafeAreaView,
     View,
     Text,
     Image,
     TouchableOpacity,
+    ScrollView,
     StyleSheet,
     StatusBar,
+    Alert,
+    Modal,
+    ActivityIndicator,
 } from 'react-native';
-import {Ionicons,MaterialCommunityIcons,Feather} from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import pizza from '@/assets/Recipe_Images/pizza.jpg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const THUMBNAILS = [
-'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=200',
-  'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=200',
-  'https://www.kitchenaid.com/is/image/content/dam/business-unit/kitchenaid/en-us/marketing-content/site-assets/page-content/blog/13-pro-tips-for-refrigerator-organization-that-lasts/Flyout-Image-1-fridge-organization-230351KRP01-027_KRSC536RPS_Set_sRGB-KRSC536RPS.jpg?fmt=webp-alpha&qlt=85,0&resMode=sharp2&op_usm=1.75,0.3,2,0&scl=1&constrain=fit,1',
+const RECOMMENDED_RECIPE = {
+    name: 'Pizza',
+    description: 'Italian bread with sauce',
+    image: pizza,
+};
+
+const MEAL_TIMES = [
+    { label: 'Breakfast', icon: 'sunny-outline', hour: 8 },
+    { label: 'Lunch', icon: 'partly-sunny-outline', hour: 12 },
+    { label: 'Dinner', icon: 'moon-outline', hour: 18 },
 ];
 
-export function HomeScreen({navigation}){
-    return(
-        <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle='dark-content' />
+function getClosestMeal(hour: number) {
+    let closest = MEAL_TIMES[0];
+    let minDistance = Infinity;
 
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>PickToPlate</Text>
-            </View>
+    MEAL_TIMES.forEach((meal) => {
+        const rawDiff = Math.abs(hour - meal.hour);
+        const circularDiff = Math.min(rawDiff, 24 - rawDiff);
 
-            <View style={styles.content}>
-                <Text style={styles.title}>Snap Your Fridge</Text>
+        if (circularDiff < minDistance) {
+            minDistance = circularDiff;
+            closest = meal;
+        }
+    });
 
-              <TouchableOpacity
-              style={styles.cameraButton}
-              activeOpacity={0.85}
-              // This is where button navigation goes
-              //  onPress={() => }
-              >
-              <View style={styles.cameraIconCircle}>
-                  <Ionicons name="camera-outline" size = {40} color = "#5C8A66" />
-              </View>
-              <Text style={styles.cameraButtonText}>Take Photo</Text>
-              </TouchableOpacity>
-
-              <View style = {styles.dividerRow}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>OR</Text>
-                  <View style={styles.dividerLine} />
-              </View>
-
-              <View style = {styles.thumbRow}>
-                {THUMBNAILS.map((uri,i) => (
-                  <TouchableOpacity key={i} activeOpacity={0.8} onPress={() => {}}>
-                    <Image source={{uri}} style = {styles.thumb}/> 
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.caption}>Analyze your ingridents in seconds</Text>
-          </View>
-                      <View style={styles.tabBarPlaceholder}>
-                <View style={styles.tabItemPlaceholder}>
-                    <Ionicons name="home" size={24} color="#5C8A66" />
-                    <Text style={[styles.tabLabelPlaceholder, styles.tabLabelActivePlaceholder]}>Home</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <MaterialCommunityIcons name="silverware-fork-knife" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Recipes</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <Feather name="calendar" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Meal Plan</Text>
-                </View>
-                <View style={styles.tabItemPlaceholder}>
-                    <Feather name="user" size={24} color="#9AA39C" />
-                    <Text style={styles.tabLabelPlaceholder}>Profile</Text>
-                </View>
-            </View>
-
-
-
-        </SafeAreaView>
-    )
+    return closest;
 }
 
+const TIME_ZONES = [
+    { label: 'Eastern Time', zone: 'America/New_York' },
+    { label: 'Central Time', zone: 'America/Chicago' },
+    { label: 'Mountain Time', zone: 'America/Denver' },
+    { label: 'Pacific Time', zone: 'America/Los_Angeles' },
+    { label: 'Alaska Time', zone: 'America/Anchorage' },
+    { label: 'Hawaii Time', zone: 'Pacific/Honolulu' },
+];
 
+function makeHourFormatter(zone: string) {
+    return new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: 'numeric',
+        hourCycle: 'h23',
+    });
+}
+
+function makeClockDisplayFormatter(zone: string) {
+    return new Intl.DateTimeFormat('en-US', {
+        timeZone: zone,
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+    });
+}
+
+export function HomeScreen() {
+
+    const [now, setNow] = useState(new Date());
+
+    const [selectedZoneIndex, setSelectedZoneIndex] = useState(0);
+    const [zonePickerVisible, setZonePickerVisible] = useState(false);
+
+    const selectedZone = TIME_ZONES[selectedZoneIndex];
+
+    useEffect(() => {
+        const intervalId = setInterval(() => {
+            setNow(new Date());
+        }, 1000);
+
+        return () => clearInterval(intervalId);
+    }, []);
+  
+    const hourFormatter = useMemo(
+        () => makeHourFormatter(selectedZone.zone),
+        [selectedZone.zone]
+    );
+
+    const clockDisplayFormatter = useMemo(
+        () => makeClockDisplayFormatter(selectedZone.zone),
+        [selectedZone.zone]
+    );
+
+    const currentHour = parseInt(hourFormatter.format(now), 10);
+    const closestMeal = getClosestMeal(currentHour);
+
+    
+    const [capturedPhoto, setCapturedPhoto] =
+        useState<string | null>(null);
+    const [analyzing, setAnalyzing] =
+        useState<boolean>(false);
+    
+        type Ingredient = {
+        name: string;
+        confidence: 'high' | 'medium' | 'low';
+        category:
+            | 'Dairy and eggs'
+            | 'Meat'
+            | 'Produce'
+            | 'Pantry'
+            | 'Other';
+    };
+
+    type Recipe = {
+        name: string;
+        description: string;
+        ingredients: string[];
+        instructions: string[];
+    };
+
+    const [ingredients, setIngredients] =
+        useState<Ingredient[]>([]);
+    const [showIngredients, setShowIngredients] = useState(false);
+    const [recipes, setRecipes] = useState<Recipe[]>([]);
+    const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+    const [recipePopupVisible, setRecipePopupVisible] = useState(false);
+    const INVENTORY_STORAGE_KEY = '@PickToPlate:inventory';
+    const addIngredientsToInventory = async () => {
+    if (ingredients.length === 0) return;
+
+    try {
+        const storedValue =
+            await AsyncStorage.getItem(INVENTORY_STORAGE_KEY);
+
+        const currentInventory = storedValue
+            ? JSON.parse(storedValue)
+            : [];
+
+        const updatedInventory = [...currentInventory];
+
+        ingredients.forEach((ingredient) => {
+            const normalName = ingredient.name.trim();
+
+            if (!normalName) return;
+
+            const existingIndex = updatedInventory.findIndex(
+                (item: any) =>
+                    item.name?.trim().toLowerCase() ===
+                    normalName.toLowerCase()
+            );
+
+            if (existingIndex >= 0) {
+                updatedInventory[existingIndex] = {
+                    ...updatedInventory[existingIndex],
+                    quantity:
+                        Number(
+                            updatedInventory[existingIndex].quantity || 0
+                        ) + 1,
+                };
+            } else {
+                updatedInventory.push({
+                    id: `${normalName
+                        .toLowerCase()
+                        .replace(/\s+/g, '_')}_${Date.now()}_${Math.random()
+                        .toString(36)
+                        .slice(2, 7)}`,
+                    name: normalName,
+                    category: ingredient.category,
+                    quantity: 1,
+                    unit: 'count',
+                    lowStockAt: 1,
+                });
+            }
+        });
+
+        await AsyncStorage.setItem(
+            INVENTORY_STORAGE_KEY,
+            JSON.stringify(updatedInventory)
+        );
+
+        Alert.alert(
+            'Added to Inventory',
+            `${ingredients.length} ingredient${
+                ingredients.length === 1 ? '' : 's'
+            } added to your inventory.`
+        );
+    } catch (error) {
+        console.error(
+            'Failed to add ingredients to inventory:',
+            error
+        );
+
+        Alert.alert(
+            'Could not update inventory',
+            'The ingredients were found, but they could not be added to your inventory.'
+        );
+    }
+};
+    const openRecipe = (recipe: Recipe) => {
+        setSelectedRecipe(recipe);
+        setRecipePopupVisible(true);
+    };     
+
+    const closeRecipe = () => {
+        setRecipePopupVisible(false);
+        setSelectedRecipe(null);
+    };
+
+    const deleteRecipe = () => {
+        if (!selectedRecipe) return;
+
+        setRecipes((currentRecipes) =>
+            currentRecipes.filter(
+                (recipe) => recipe.name !== selectedRecipe.name
+            )
+        );
+
+        closeRecipe();
+    }
+
+    const SAVED_RECIPES_STORAGE_KEY = '@PickToPlate:savedRecipes';
+
+const saveRecipe = async () => {
+    if (!selectedRecipe) return;
+
+    try {
+        const storedRecipes = await AsyncStorage.getItem(
+            SAVED_RECIPES_STORAGE_KEY
+        );
+
+        const savedRecipes: Recipe[] = storedRecipes
+            ? JSON.parse(storedRecipes)
+            : [];
+
+        // Don't save the same recipe twice
+        const alreadySaved = savedRecipes.some(
+            (recipe) =>
+                recipe.name.trim().toLowerCase() ===
+                selectedRecipe.name.trim().toLowerCase()
+        );
+
+        if (!alreadySaved) {
+            const updatedRecipes = [
+                ...savedRecipes,
+                selectedRecipe,
+            ];
+
+            await AsyncStorage.setItem(
+                SAVED_RECIPES_STORAGE_KEY,
+                JSON.stringify(updatedRecipes)
+            );
+
+            Alert.alert(
+                'Recipe Saved',
+                `${selectedRecipe.name} was saved to your recipes.`
+            );
+        } else {
+            Alert.alert(
+                'Already Saved',
+                `${selectedRecipe.name} is already in your recipes.`
+            );
+        }
+
+        closeRecipe();
+    } catch (error) {
+        console.error('Failed to save recipe:', error);
+
+        Alert.alert(
+            'Could not save recipe',
+            'Something went wrong while saving this recipe.'
+        );
+    }
+};
+
+    const imageUriToBase64 = async (imageUri: string | URL | Request) => {
+        const response = await fetch(imageUri);
+        if (!response.ok) {
+            throw new Error('Could not read the captured image.');
+        }
+        //blob = binary data
+        const blob = await response.blob();
+
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+
+            reader.onloadend = () => {
+                try {                    const result = reader.result;
+
+                    if (typeof result !== 'string') {
+                        reject(
+                            new Error(
+                                'Could not convert image to base64.'
+                            )
+                        );
+                        return;
+                    }
+
+                    const base64Data = result.split(',')[1];
+
+                    if (!base64Data) {
+                        reject(
+                            new Error(
+                                'Invalid base64 image data.'
+                            )
+                        );
+                        return;
+                    }
+
+                    resolve(base64Data);
+                } catch (error) {
+                    reject(error);
+                }
+            };
+
+            reader.onerror = () => {
+                reject(new Error('Failed to read image.'));
+            };
+
+            reader.readAsDataURL(blob);
+        });
+    };
+
+    const analyzeFridgePhoto = async (imageUri: string) => {
+        try {
+            setAnalyzing(true);
+
+            setIngredients([]);
+            setRecipes([]);
+
+            const GEMINI_API_KEY =
+                process.env.EXPO_PUBLIC_AI_API_KEY;
+
+            if (!GEMINI_API_KEY) {
+                throw new Error(
+                    'Gemini API key is missing. Check your .env file.'
+                );
+            }
+
+            const base64Image = await imageUriToBase64(imageUri);
+
+            const geminiResponse = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
+                {
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                parts: [
+                                    {
+                                        inlineData: {
+                                            mimeType: 'image/jpeg',
+                                            data: base64Image,
+                                        },
+                                    },
+                                    {
+                                        text: `
+                                            You are analyzing a photo of a refrigerator for a cooking app called PickToPlate.
+
+                                            Identify the food ingredients that are clearly visible in the refrigerator.
+
+                                            Return ONLY valid JSON in exactly this format:
+                                            {
+                                                "ingredients": [
+                                                    {
+                                                        "name": "eggs",
+                                                        "confidence": "high",
+                                                        "category": "Dairy and eggs"
+                                                    }
+                                                ]
+                                            }
+
+                                            Rules:
+                                            - Only include food ingredients that are actually visible.
+                                            - Do not invent ingredients.
+                                            - Do not include non-food objects.
+                                            - If you see a container but cannot determine what is inside, do not guess.
+                                            - Use simple ingredient names.
+                                            - Include the category for each ingredient.
+                                            - The only categories are:
+                                              "Dairy and eggs", "Meat", "Produce", "Pantry", and "Other".
+                                            - Place every ingredient in exactly one of those categories.
+                                            - If you are unsure about the category, use "Other".
+                                            - Do not include markdown.
+                                            - Do not include \`\`\`json.
+                                            - Return only the JSON object.
+                                        `,
+                                    },
+                                ],
+                            },
+                        ],
+                    }),
+                }
+            );
+
+            // Check the first Gemini request before trying to parse it.
+            if (!geminiResponse.ok) {
+                const errorText = await geminiResponse.text();
+
+                throw new Error(
+                    `Gemini ingredient request failed: ${geminiResponse.status} ${errorText}`
+                );
+            }
+
+            const ingredientResponseData =
+                await geminiResponse.json();
+
+            const ingredientText =
+                ingredientResponseData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!ingredientText) {
+                throw new Error(
+                    'Gemini did not return any ingredients.'
+                );
+            }
+
+            // Remove markdown code fences if Gemini happens to include them.
+            const cleanedIngredientText = ingredientText
+                .replace(/```json/g, '')
+                .replace(/```/g, '')
+                .trim();
+
+            const ingredientData =
+                JSON.parse(cleanedIngredientText);
+
+            if (!Array.isArray(ingredientData.ingredients)) {
+                throw new Error(
+                    'Gemini returned an invalid ingredients format.'
+                );
+            }
+
+            const detectedIngredients: Ingredient[] =
+                ingredientData.ingredients;
+
+            setIngredients(detectedIngredients);
+            setShowIngredients(true);
+
+            const recipeResponse = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${GEMINI_API_KEY}`,
+                {
+                    method: 'POST',
+
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+
+                    body: JSON.stringify({
+                        contents: [
+                            {
+                                parts: [
+                                    {
+                                        text: `
+                                            You are generating recipes for a cooking app called PickToPlate.
+
+                                            The ingredients detected in the user's refrigerator are:
+
+                                            ${detectedIngredients
+                                                .map(
+                                                    (ingredient) =>
+                                                        ingredient.name
+                                                )
+                                                .join(', ')}
+
+                                            Generate exactly 3 different meals that primarily use
+                                            the ingredients listed above.
+
+                                            Rules:
+                                            - Prioritize recipes that use multiple detected ingredients.
+                                            - You may assume basic pantry staples such as salt,
+                                              pepper, cooking oil, and common seasonings.
+                                            - Do not require unusual ingredients that are not listed.
+                                            - A recipe may use a small number of additional basic ingredients
+                                              if necessary.
+                                            - Make the recipes practical for a normal home kitchen.
+                                            - Give each recipe a name and short description.
+                                            - List the ingredients needed for each recipe.
+                                            - Give clear step-by-step cooking instructions.
+
+                                            Return ONLY valid JSON in exactly this format:
+
+                                            {
+                                                "recipes": [
+                                                    {
+                                                        "name": "Spinach and Cheddar Omelet",
+                                                        "description": "A simple omelet made with eggs, spinach, and cheddar cheese.",
+                                                        "ingredients": [
+                                                            "eggs",
+                                                            "spinach",
+                                                            "cheddar cheese"
+                                                        ],
+                                                        "instructions": [
+                                                            "Whisk the eggs in a bowl.",
+                                                            "Cook the spinach in a pan.",
+                                                            "Add the eggs and cheddar cheese.",
+                                                            "Cook until the eggs are fully set."
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+
+                                            Do not include markdown.
+                                            Do not include \`\`\`json.
+                                            Return only the JSON object.
+                                        `,
+                                    },
+                                ],
+                            },
+                        ],
+                    }),
+                }
+            );
+
+            // Check the second Gemini request.
+            if (!recipeResponse.ok) {
+                const errorText = await recipeResponse.text();
+
+                throw new Error(
+                    `Gemini recipe request failed: ${recipeResponse.status} ${errorText}`
+                );
+            }
+
+            const recipeResponseData =
+                await recipeResponse.json();
+
+            const recipeText =
+                recipeResponseData?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+            if (!recipeText) {
+                throw new Error(
+                    'Gemini did not return any recipes.'
+                );
+            }
+
+            // Remove markdown code fences if Gemini happens to include them.
+            const cleanedRecipeText = recipeText
+                .replace(/```json/g, '')
+                .replace(/```/g, '')
+                .trim();
+
+            const recipeData =
+                JSON.parse(cleanedRecipeText);
+
+            if (!Array.isArray(recipeData.recipes)) {
+                throw new Error(
+                    'Gemini returned an invalid recipes format.'
+                );
+            }
+            const detectedRecipes: Recipe[] =
+                recipeData.recipes;
+
+            // Store recipes in React state so they appear in the UI.
+            setRecipes(detectedRecipes);
+
+        } catch (error) {
+            console.error(
+                'Error analyzing fridge photo:',
+                error
+            );
+
+            Alert.alert(
+                'Analysis failed',
+                error instanceof Error
+                    ? error.message
+                    : 'Something went wrong while analyzing your fridge photo.'
+            );
+        } finally {
+            // Always stop the loading state.
+            setAnalyzing(false);
+        }
+    };
+
+
+    // TAKE PHOTO
+    const handleTakePhoto = async () => {
+        const { status } =
+            await ImagePicker.requestCameraPermissionsAsync();
+
+        if (status !== 'granted') {
+            Alert.alert(
+                'Camera permission needed',
+                'PickToPlate needs camera access to scan your fridge.'
+            );
+
+            return;
+        }
+
+        const result = await ImagePicker.launchCameraAsync({
+            mediaTypes: ImagePicker.MediaTypeOptions.Images,
+            quality: 0.7,
+        });
+
+        if (!result.canceled) {
+            const photoUri = result.assets[0].uri;
+            setCapturedPhoto(photoUri);
+            analyzeFridgePhoto(photoUri);
+        }
+    };
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            <StatusBar barStyle="dark-content" />
+
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>
+                    PickToPlate
+                </Text>
+            </View>
+
+            {/* Live clock */}
+            <View style={styles.clockRow}>
+                <Ionicons
+                    name="time-outline"
+                    size={14}
+                    color="#5C8A66"
+                />
+
+                <Text style={styles.clockLabel}>
+                    {selectedZone.label}:
+                </Text>
+
+                <Text style={styles.clockValue}>
+                    {clockDisplayFormatter.format(now)}
+                </Text>
+
+                <TouchableOpacity
+                    onPress={() => setZonePickerVisible(true)}
+                    hitSlop={{
+                        top: 8,
+                        bottom: 8,
+                        left: 8,
+                        right: 8,
+                    }}
+                    style={styles.zoneDropdownButton}
+                >
+                    <Ionicons
+                        name="caret-down"
+                        size={12}
+                        color="#5C8A66"
+                    />
+                </TouchableOpacity>
+            </View>
+
+            {/* Timezone picker */}
+            <Modal
+                visible={zonePickerVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() =>
+                    setZonePickerVisible(false)
+                }
+            >
+                <TouchableOpacity
+                    style={styles.zoneModalBackdrop}
+                    activeOpacity={1}
+                    onPress={() =>
+                        setZonePickerVisible(false)
+                    }
+                >
+                    <View style={styles.zoneDropdownCard}>
+                        {TIME_ZONES.map((zone, index) => {
+                            const isSelected =
+                                index === selectedZoneIndex;
+
+                            return (
+                                <TouchableOpacity
+                                    key={zone.zone}
+                                    style={styles.zoneOptionRow}
+                                    onPress={() => {
+                                        setSelectedZoneIndex(index);
+                                        setZonePickerVisible(false);
+                                    }}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.zoneOptionText,
+                                            isSelected &&
+                                                styles.zoneOptionTextSelected,
+                                        ]}
+                                    >
+                                        {zone.label}
+                                    </Text>
+
+                                    {isSelected && (
+                                        <Ionicons
+                                            name="checkmark"
+                                            size={16}
+                                            color="#3F6647"
+                                        />
+                                    )}
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </TouchableOpacity>
+            </Modal>
+
+            <Modal
+                visible={recipePopupVisible}
+                animationType="slide"
+                presentationStyle="fullScreen"
+                onRequestClose={closeRecipe}
+            >
+                <SafeAreaView style={styles.recipeModal}>
+
+                    {/* Header */}
+                    <View style={styles.recipeModalHeader}>
+                        <Text style={styles.recipeModalTitle}>
+                            Recipe
+                        </Text>
+
+                        <TouchableOpacity
+                            onPress={closeRecipe}
+                            style={styles.closeButton}
+                        >
+                            <Ionicons
+                                name="close"
+                                size={30}
+                                color="#22331F"
+                            />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Scrollable recipe content */}
+                    {selectedRecipe && (
+                        <ScrollView
+                            contentContainerStyle={styles.recipeModalContent}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            <Text style={styles.recipeModalRecipeName}>
+                                {selectedRecipe.name}
+                            </Text>
+
+                            <Text style={styles.recipeModalDescription}>
+                                {selectedRecipe.description}
+                            </Text>
+
+                            <Text style={styles.recipeModalSectionTitle}>
+                                Ingredients
+                            </Text>
+
+                            {selectedRecipe.ingredients.map(
+                                (ingredient, index) => (
+                                    <Text
+                                        key={`${ingredient}-${index}`}
+                                        style={styles.recipeModalIngredient}
+                                    >
+                                        • {ingredient}
+                                    </Text>
+                                )
+                            )}
+
+                            <Text style={styles.recipeModalSectionTitle}>
+                                Instructions
+                            </Text>
+
+                            {selectedRecipe.instructions.map(
+                                (instruction, index) => (
+                                    <Text
+                                        key={`${selectedRecipe.name}-instruction-${index}`}
+                                        style={styles.recipeModalInstruction}
+                                    >
+                                        {index + 1}. {instruction}
+                                    </Text>
+                                )
+                            )}
+                                                </ScrollView>
+                    )}
+                    
+                    <View style={styles.recipeActionButtons}>
+
+                        <TouchableOpacity
+                            style={styles.saveRecipeButton}
+                            onPress={saveRecipe}
+                            activeOpacity={0.85}
+                        >
+                            <Ionicons
+                                name="bookmark-outline"
+                                size={20}
+                                color="#FFFFFF"
+                            />
+
+                            <Text style={styles.saveRecipeButtonText}>
+                                Save Recipe
+                            </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={styles.deleteRecipeButton}
+                            onPress={deleteRecipe}
+                            activeOpacity={0.85}
+                        >
+                            <Ionicons
+                                name="trash-outline"
+                                size={20}
+                                color="#B42318"
+                            />
+
+                            <Text style={styles.deleteRecipeButtonText}>
+                                Delete Recipe
+                            </Text>
+                        </TouchableOpacity>
+
+                    </View>
+
+
+                </SafeAreaView>
+            </Modal>
+            <ScrollView
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+            >
+                <Text style={styles.title}>
+                    Snap Your Fridge
+                </Text>
+
+                {/* CAMERA BUTTON */}
+                <TouchableOpacity
+                    style={[
+                        styles.cameraButton,
+                        analyzing && styles.cameraButtonDisabled,
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={handleTakePhoto}
+                    disabled={analyzing}
+                >
+                    <View style={styles.cameraIconCircle}>
+                        <Ionicons
+                            name="camera-outline"
+                            size={40}
+                            color="#5C8A66"
+                        />
+                    </View>
+
+                    <Text style={styles.cameraButtonText}>
+                        {analyzing
+                            ? 'Analyzing...'
+                            : 'Take Photo'}
+                    </Text>
+                </TouchableOpacity>
+
+                {/* PHOTO PREVIEW */}
+                {capturedPhoto && (
+                    <Image
+                        source={{ uri: capturedPhoto }}
+                        style={styles.previewImage}
+                    />
+                )}
+
+                {/* GEMINI LOADING STATE */}
+                {analyzing && (
+                    <View style={styles.analyzingContainer}>
+                        <ActivityIndicator
+                            size="small"
+                            color="#3F6647"
+                        />
+
+                        <Text style={styles.analyzingText}>
+                            Analyzing your fridge...
+                        </Text>
+                    </View>
+                )}
+
+                {/* INGREDIENT RESULTS */}
+                {ingredients.length > 0 && !analyzing && showIngredients && (
+                <View style={styles.ingredientsContainer}>
+                    <TouchableOpacity
+                        style={styles.closeIngredientsButton}
+                        onPress={() => setShowIngredients(false)}
+                        hitSlop={{
+                            top: 8,
+                            bottom: 8,
+                            left: 8,
+                            right: 8,
+                        }}
+                    >
+                        <Ionicons
+                            name="close"
+                            size={22}
+                            color="#3F6647"
+                        />
+                    </TouchableOpacity>
+
+                    <Text style={styles.ingredientsTitle}>
+                        Ingredients Found
+                    </Text>
+                <Text style={styles.ingredientsTitle}>
+                    Ingredients Found
+                </Text>
+
+                {ingredients.map((ingredient, index) => (
+                    <View
+                        key={`${ingredient.name}-${index}`}
+                        style={styles.ingredientRow}
+                    >
+                        <View style={styles.ingredientLeft}>
+                            <View style={styles.ingredientBullet} />
+
+                            <Text style={styles.ingredientName}>
+                                {ingredient.name}
+                            </Text>
+                        </View>
+
+                        <View style={styles.ingredientMeta}>
+                            <Text style={styles.ingredientCategory}>
+                                {ingredient.category}
+                            </Text>
+
+                            <Text style={styles.ingredientConfidence}>
+                                {ingredient.confidence}
+                            </Text>
+                        </View>
+                    </View>
+                ))}
+
+                {/* ADD EVERYTHING TO INVENTORY */}
+                <TouchableOpacity
+                    style={styles.addToInventoryButton}
+                    onPress={addIngredientsToInventory}
+                    activeOpacity={0.85}
+                >
+                    <Ionicons
+                        name="add-circle-outline"
+                        size={20}
+                        color="#FFFFFF"
+                    />
+
+                    <Text style={styles.addToInventoryButtonText}>
+                        Add to Inventory
+                    </Text>
+                </TouchableOpacity>
+            </View>
+        )}
+                {recipes.length > 0 && !analyzing && (
+                    <View style={styles.recipesContainer}>
+                        <Text style={styles.recipesTitle}>
+                            Recipes for You
+                        </Text>
+
+                        {recipes.map((recipe, index) => (
+                            <TouchableOpacity
+                                key={`${recipe.name}-${index}`}
+                                style={styles.recipeCard}
+                                activeOpacity={0.85}
+                                onPress={() => openRecipe(recipe)}
+                            >
+
+                                <View style={styles.recipeCardText}>
+                                    <Text style={styles.recipeName}>
+                                        {recipe.name}
+                                    </Text>
+
+                                    <Text style={styles.recipeDescription}>
+                                        {recipe.description}
+                                    </Text>
+
+                                    <Text style={styles.recipeTapHint}>
+                                        Tap for recipe →
+                                    </Text>
+                                </View>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
+
+                <View style={styles.mealBadge}>
+                    <MaterialCommunityIcons
+                        name={
+                            closestMeal.icon ===
+                            'sunny-outline'
+                                ? 'weather-sunny'
+                                : closestMeal.icon ===
+                                  'moon-outline'
+                                ? 'weather-night'
+                                : 'weather-partly-cloudy'
+                        }
+                        size={20}
+                        color="#3F6647"
+                    />
+
+                    <Text style={styles.mealBadgeText}>
+                        {closestMeal.label}
+                    </Text>
+                </View>
+
+                <Text style={styles.caption}>
+                    Analyze your ingredients in seconds
+                </Text>
+            </ScrollView>
+        </SafeAreaView>
+    );
+}
 
 const styles = StyleSheet.create({
     safeArea: {
-        flex:1,
+        flex: 1,
         backgroundColor: '#FFFFFF',
     },
+
     header: {
-        backgroundColor:'#EAF3EA',
+        backgroundColor: '#EAF3EA',
         paddingVertical: 16,
         alignItems: 'center',
     },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#3F6647',
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    paddingTop: 28,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#22331F',
-    marginBottom: 24,
-  },
-  cameraButton: {
-    width: '100%',
-    aspectRatio: 1.6,
-    backgroundColor: '#6FA377',
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cameraIconCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#FFFFFF',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-  cameraButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
-    fontWeight: '600',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    width: '100%',
-    marginVertical: 20,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#DDE3DD',
-  },
-  dividerText: {
-    marginHorizontal: 12,
-    color: '#9AA39C',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  thumbRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  thumb: {
-    width: 96,
-    height: 72,
-    borderRadius: 12,
-    backgroundColor: '#E5E5E5',
-  },
-  caption: {
-    marginTop: 50,
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#3F6647',
-    textAlign: 'center',
-    backgroundColor: '#EAF3EA',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 16,
-    overflow: 'hidden',
-  },
-  tabBarPlaceholder: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: '#EDEDED',
-    paddingTop: 10,
-    paddingBottom: 18,
-    backgroundColor: '#FFFFFF',
-  },
-  tabItemPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  tabLabelPlaceholder: {
-    fontSize: 11,
-    color: '#9AA39C',
-    marginTop: 4,
-  },
-  tabLabelActivePlaceholder: {
-    color: '#5C8A66',
-    fontWeight: '600',
-  },
+
+    headerTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#3F6647',
+    },
+
+    clockRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
+        paddingVertical: 8,
+        backgroundColor: '#F3F6F2',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E9E3',
+    },
+
+    clockLabel: {
+        fontSize: 11,
+        color: '#5F6B5F',
+        fontWeight: '600',
+    },
+
+    clockValue: {
+        fontSize: 12,
+        color: '#3F6647',
+        fontWeight: '700',
+    },
+
+    zoneDropdownButton: {
+        marginLeft: 2,
+        padding: 2,
+    },
+
+    zoneModalBackdrop: {
+        flex: 1,
+        backgroundColor: 'rgba(20, 30, 20, 0.25)',
+        alignItems: 'center',
+        paddingTop: 90,
+    },
+
+    zoneDropdownCard: {
+        width: 220,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 14,
+        paddingVertical: 6,
+        boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.15)',
+    },
+
+    zoneOptionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 11,
+        paddingHorizontal: 16,
+    },
+
+    zoneOptionText: {
+        fontSize: 14,
+        color: '#22331F',
+    },
+
+    zoneOptionTextSelected: {
+        fontWeight: '700',
+        color: '#3F6647',
+    },
+
+    content: {
+        width: '100%',
+        maxWidth: 480,
+        alignSelf: 'center',
+        paddingHorizontal: 24,
+        alignItems: 'center',
+        paddingTop: 28,
+        paddingBottom: 40,
+    },
+
+    title: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#22331F',
+        marginBottom: 24,
+    },
+
+    cameraButton: {
+        width: '100%',
+        aspectRatio: 1.6,
+        maxHeight: 260,
+        backgroundColor: '#6FA377',
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    cameraButtonDisabled: {
+        opacity: 0.7,
+    },
+
+    cameraIconCircle: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        backgroundColor: '#FFFFFF',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 12,
+    },
+
+    cameraButtonText: {
+        color: '#FFFFFF',
+        fontSize: 17,
+        fontWeight: '600',
+    },
+
+    previewImage: {
+        width: '100%',
+        aspectRatio: 1.6,
+        maxHeight: 260,
+        borderRadius: 16,
+        marginTop: 16,
+        backgroundColor: '#E5E5E5',
+    },
+
+    analyzingContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginTop: 18,
+        gap: 10,
+    },
+
+    analyzingText: {
+        fontSize: 15,
+        color: '#5C8A66',
+        fontWeight: '600',
+    },
+
+    ingredientsContainer: {
+        width: '100%',
+        marginTop: 20,
+        backgroundColor: '#EAF3EA',
+        borderRadius: 16,
+        padding: 18,
+    },
+
+    ingredientsTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginBottom: 8,
+        paddingRight: 30,
+    },
+
+    ingredientRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 11,
+        borderBottomWidth: 1,
+        borderBottomColor: '#D5E3D5',
+    },
+
+    ingredientLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+
+    ingredientBullet: {
+        width: 7,
+        height: 7,
+        borderRadius: 4,
+        backgroundColor: '#6FA377',
+        marginRight: 10,
+    },
+
+    ingredientName: {
+        fontSize: 16,
+        color: '#22331F',
+        fontWeight: '500',
+        textTransform: 'capitalize',
+    },
+
+    ingredientMeta: {
+    alignItems: 'flex-end',
+    marginLeft: 10,
+},
+
+    ingredientCategory: {
+        fontSize: 11,
+        color: '#3F6647',
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+
+    ingredientConfidence: {
+        fontSize: 12,
+        color: '#5C8A66',
+        fontWeight: '600',
+        textTransform: 'capitalize',
+    },
+
+    addToInventoryButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#6FA377',
+        borderRadius: 12,
+        paddingVertical: 12,
+        marginTop: 16,
+    },
+
+    addToInventoryButtonText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '700',
+    },
+
+    recipesContainer: {
+        width: '100%',
+        marginTop: 20,
+    },
+
+    recipesTitle: {
+        fontSize: 22,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginBottom: 12,
+    },
+
+    recipeSectionTitle: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginTop: 6,
+        marginBottom: 5,
+    },
+
+    recipeIngredient: {
+        fontSize: 14,
+        lineHeight: 21,
+        color: '#22331F',
+        marginLeft: 4,
+    },
+
+    recipeInstruction: {
+        fontSize: 14,
+        lineHeight: 21,
+        color: '#22331F',
+        marginBottom: 4,
+    },
+
+    mealBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+        marginTop: 20,
+        backgroundColor: '#EAF3EA',
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 16,
+    },
+
+    mealBadgeText: {
+        fontSize: 17,
+        fontWeight: '700',
+        color: '#3F6647',
+    },
+
+    caption: {
+        marginTop: 50,
+        fontSize: 20,
+        fontWeight: '600',
+        color: '#3F6647',
+        textAlign: 'center',
+        backgroundColor: '#EAF3EA',
+        paddingVertical: 10,
+        paddingHorizontal: 20,
+        borderRadius: 16,
+        overflow: 'hidden',
+    },
+
+    recipeCard: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 16,
+        marginBottom: 14,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: '#D5E3D5',
+    },
+
+    recipeImagePlaceholder: {
+        width: '100%',
+        height: 130,
+        backgroundColor: '#EAF3EA',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    recipeCardText: {
+        padding: 16,
+    },
+
+    recipeName: {
+        fontSize: 19,
+        fontWeight: '700',
+        color: '#22331F',
+        marginBottom: 6,
+    },
+
+    recipeDescription: {
+        fontSize: 14,
+        lineHeight: 20,
+        color: '#5F6B5F',
+    },
+
+    recipeTapHint: {
+        marginTop: 10,
+        fontSize: 13,
+        fontWeight: '600',
+        color: '#5C8A66',
+    },
+
+    recipeModal: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+    },
+
+    recipeModalHeader: {
+        height: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderBottomWidth: 1,
+        borderBottomColor: '#E5E9E3',
+    },
+
+    recipeModalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#3F6647',
+    },
+
+    closeButton: {
+        position: 'absolute',
+        right: 16,
+        padding: 6,
+    },
+
+    recipeModalContent: {
+        padding: 24,
+        paddingBottom: 50,
+    },
+
+    recipeModalImage: {
+        width: '100%',
+        height: 200,
+        borderRadius: 18,
+        backgroundColor: '#EAF3EA',
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 20,
+    },
+
+    recipeModalRecipeName: {
+        fontSize: 28,
+        fontWeight: '700',
+        color: '#22331F',
+        marginBottom: 8,
+    },
+
+    recipeModalDescription: {
+        fontSize: 16,
+        lineHeight: 23,
+        color: '#5F6B5F',
+        marginBottom: 24,
+    },
+
+    recipeModalSectionTitle: {
+        fontSize: 19,
+        fontWeight: '700',
+        color: '#3F6647',
+        marginTop: 12,
+        marginBottom: 10,
+    },
+
+    recipeModalIngredient: {
+        fontSize: 15,
+        lineHeight: 23,
+        color: '#22331F',
+        marginBottom: 4,
+    },
+
+    recipeModalInstruction: {
+        fontSize: 15,
+        lineHeight: 23,
+        color: '#22331F',
+        marginBottom: 10,
+    },
+
+    saveRecipeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#6FA377',
+        borderRadius: 12,
+        paddingVertical: 14,
+        marginTop: 30,
+    },
+
+    saveRecipeButtonText: {
+        color: '#FFFFFF',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+
+    deleteRecipeButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        backgroundColor: '#FDECEC',
+        borderRadius: 12,
+        paddingVertical: 14,
+        marginTop: 12,
+    },
+
+    deleteRecipeButtonText: {
+        color: '#B42318',
+        fontSize: 16,
+        fontWeight: '700',
+    },
+
+    recipeActionButtons: {
+        paddingHorizontal: 24,
+        paddingBottom: 20,
+        paddingTop: 10,
+        backgroundColor: '#FFFFFF',
+
+    
+    },
+
+    closeIngredientsButton: {
+        position: 'absolute',
+        top: 10,
+        right: 10,
+        zIndex: 10,
+        padding: 4,
+    },
 });
-
-
-
-
-
-
-
-
-
