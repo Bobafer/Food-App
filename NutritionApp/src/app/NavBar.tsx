@@ -10,7 +10,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Button } from '@react-navigation/elements';
 import { Ionicons } from '@expo/vector-icons';
 import { HomeScreen } from './home';
-import { Recipe } from './recipe';
+import { RecipeScreen } from './recipe';
 import { InventoryScreen } from './inventory';
 import SettingsScreen from './Settings';
 import { MealPlan } from './mealplanbuttons';
@@ -331,7 +331,7 @@ const HomeStack = createNativeStackNavigator({
 
 const RecipesStack = createNativeStackNavigator({
   screens: {
-    Recipes: Recipe,
+    Recipes: RecipeScreen,
   },
 });
 
