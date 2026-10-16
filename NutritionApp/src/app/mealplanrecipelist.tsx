@@ -1,51 +1,78 @@
-import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from "react-native"
-import {Recipe} from './recipe';
+import React, { useState, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native"
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 
-// ADDED: onSelect — forwarded straight through to every Recipe card. When
-// this list is shown inside ChooseMeal, tapping any card reports that
-// recipe's data back up the chain instead of expanding its details.
-//
-// CHANGED: the 10 repeated <Recipe /> lines became a small array + .map() —
-// same visual result, but each one now gets a proper `key` prop (React was
-// previously missing this and would warn about it), and it's a lot easier
-// to later swap in 10 different real recipes instead of the same one 10
-// times.
+type SavedRecipe = {
+    name: string;
+    description: string;
+    ingredients: string[];
+    instructions: string[];
+};
+
+const SAVED_RECIPES_STORAGE_KEY = '@PickToPlate:savedRecipes';
+
 export const RecipeList = ({ onSelect }) => {
+    const [savedRecipes, setSavedRecipes] = useState<SavedRecipe[]>([]);
+    const [isLoaded, setIsLoaded] = useState(false);
 
-    const placeholderRecipeSlots = Array.from({ length: 10 });
+    const loadSavedRecipes = useCallback(async () => {
+        try {
+            const storedRecipes = await AsyncStorage.getItem(SAVED_RECIPES_STORAGE_KEY);
+            setSavedRecipes(storedRecipes ? JSON.parse(storedRecipes) : []);
+        } catch (error) {
+            console.warn('Failed to load saved recipes for meal picker:', error);
+        } finally {
+            setIsLoaded(true);
+        }
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            loadSavedRecipes();
+        }, [loadSavedRecipes])
+    );
 
     return(
-        // ADDED: nestedScrollEnabled — this list now sits inside the Meal Plan
-        // screen's own ScrollView, and Android needs this flag to let the
-        // inner list scroll instead of the outer one grabbing every swipe.
-        <ScrollView style={styles.recipewindow}
-        showsVerticalScrollIndicator={false}
-        nestedScrollEnabled>
+        <ScrollView style={styles.recipewindow} showsVerticalScrollIndicator={false} nestedScrollEnabled>
             <Text style={styles.recipetext}>Recipes</Text>
-
-            {placeholderRecipeSlots.map((_, index) => (
-                <Recipe key={index} onSelect={onSelect} />
+            {isLoaded && savedRecipes.length === 0 && (
+                <View style={styles.emptyContainer}>
+                    <Ionicons name="bookmark-outline" size={28} color="#5C8A66" />
+                    <Text style={styles.emptyText}>
+                        No saved recipes yet. Scan your fridge and save a recipe from Home first.
+                    </Text>
+                </View>
+            )}
+            {savedRecipes.map((recipe, index) => (
+                <TouchableOpacity
+                    key={`${recipe.name}-${index}`}
+                    style={styles.recipeRow}
+                    activeOpacity={0.8}
+                    onPress={() => onSelect(recipe)}
+                >
+                    <Text style={styles.recipeName}>{recipe.name}</Text>
+                    <Text style={styles.recipeDescription}>{recipe.description}</Text>
+                </TouchableOpacity>
             ))}
         </ScrollView>
     )
-
-
 }
 
-    const styles = StyleSheet.create({
-        recipewindow: {
-            flex: 1,
-            gap: 10,
-            maxHeight: 500,
-            marginTop: 10,
-            
-        },
-        recipetext: {
-            fontSize: 20,
-            fontWeight: 'bold',
-        },
-        recipeScroll: {
-
-        }
-    })
+const styles = StyleSheet.create({
+    recipewindow: { flex: 1, gap: 10, maxHeight: 500, marginTop: 10 },
+    recipetext: { fontSize: 20, fontWeight: 'bold' },
+    emptyContainer: { alignItems: 'center', paddingVertical: 20, gap: 8 },
+    emptyText: { fontSize: 13, color: '#5F6B5F', textAlign: 'center', paddingHorizontal: 20 },
+    recipeRow: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#D5E3D5',
+        padding: 12,
+        marginBottom: 8,
+    },
+    recipeName: { fontSize: 15, fontWeight: '700', color: '#22331F' },
+    recipeDescription: { fontSize: 13, color: '#5F6B5F', marginTop: 2 },
+})
