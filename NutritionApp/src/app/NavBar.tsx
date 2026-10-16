@@ -381,7 +381,7 @@ const MyTabs = createBottomTabNavigator({
       },
     },
     RecipesStack: {
-      screen: Recipe,  //can be changed to SettingsScreen if you dont want the "Settings" Header
+      screen: RecipeScreen,  //can be changed to SettingsScreen if you dont want the "Settings" Header
       options: {
         tabBarLabel: 'Recipes',
         tabBarIcon: ({ focused, color, size }) => (
