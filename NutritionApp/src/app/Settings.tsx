@@ -393,39 +393,7 @@ const SettingsScreen = () => {
     <Text style={styles.saveButtonText}>
       {saved ? "Saved!" : "Save"}
     </Text>
-  </Pressable>
-
-        {/*API Key Test Button*/}
-        <Pressable onPress={async () => {
-          setIsAnalyzing(true); // ADDED: show the loading popup
-          try {
-            console.log("CALLING AI...");
-
-            const response = await callAi();
-
-            console.log("RESPONSE TEXT:", response.text);
-
-            Alert.alert(
-              "AI Response",
-              response.text || "No response received."
-            );
-
-          } catch (error) {
-            console.log("AI CALL FAILED!");
-            console.log(error);
-
-            Alert.alert(
-              "AI Error",
-              error instanceof Error ? error.message : String(error)
-            );
-         } finally {
-            // ADDED: always hide the popup, whether the AI call worked or failed
-            setIsAnalyzing(false);
-          }
-        }}
-        >
-          <Text>API Key Test</Text>
-        </Pressable>
+  </Pressable>      
       </View>
     </ScrollView>
   </SafeAreaView> 
