@@ -8,7 +8,7 @@
     "scheme": "nutritionapp",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/Click&cookicon.icon",
+      "icon": "./assets/Clickcookicon.icon",
       "bundleIdentifier": "com.tcsm.NutritionApp",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
