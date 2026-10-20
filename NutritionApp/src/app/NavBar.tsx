@@ -14,6 +14,7 @@ import { RecipeScreen } from './recipe';
 import { InventoryScreen } from './inventory';
 import SettingsScreen from './Settings';
 import { MealPlan } from './mealplanbuttons';
+
 // ADDED: shared meal-plan data, so Home can see what's picked here.
 import { MealPlanProvider, useMealPlan } from './mealPlanStore';
 
