@@ -557,7 +557,7 @@ export function HomeScreen() {
       <StatusBar barStyle="dark-content" />
 
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>PickToPlate</Text>
+        <Text style={styles.headerTitle}>Click&Cook</Text>
       </View>
 
       {/* Live clock */}
