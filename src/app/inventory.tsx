@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  SafeAreaView,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  StatusBar,
-  KeyboardAvoidingView,
-  Platform,
-  Modal,
-  ActivityIndicator,
-} from 'react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
+import { useCallback, useEffect, useState } from 'react';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  SafeAreaView,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 
 // --- Persistence -------------------------------------------------------
 // The key AsyncStorage will file this under. Prefixing with the app name
@@ -29,13 +29,13 @@ const INVENTORY_STORAGE_KEY = '@PickToPlate:inventory';
 // from that result (e.g. navigation params, or a store/context updated after a scan).
 
 // This is what will appear on the screen at default
-const INITIAL_INVENTORY = [
-  { id: 'eggs', name: 'Eggs', category: 'Dairy and eggs', quantity: 12, unit: 'count', lowStockAt: 3 },
-  { id: 'milk', name: 'Milk', category: 'Dairy and eggs', quantity: 1, unit: 'L', lowStockAt: 0.5 },
-  { id: 'spinach', name: 'Spinach', category: 'Produce', quantity: 1, unit: 'bag', lowStockAt: 1 },
-  { id: 'bell_peppers', name: 'Bell peppers', category: 'Produce', quantity: 1, unit: 'count', lowStockAt: 2 },
-  { id: 'chicken_breast', name: 'Chicken breast', category: 'Meat', quantity: 4, unit: 'count', lowStockAt: 1 },
-];
+// const INITIAL_INVENTORY = [
+//   { id: 'eggs', name: 'Eggs', category: 'Dairy and eggs', quantity: 12, unit: 'count', lowStockAt: 3 },
+//   { id: 'milk', name: 'Milk', category: 'Dairy and eggs', quantity: 1, unit: 'L', lowStockAt: 0.5 },
+//   { id: 'spinach', name: 'Spinach', category: 'Produce', quantity: 1, unit: 'bag', lowStockAt: 1 },
+//   { id: 'bell_peppers', name: 'Bell peppers', category: 'Produce', quantity: 1, unit: 'count', lowStockAt: 2 },
+//   { id: 'chicken_breast', name: 'Chicken breast', category: 'Meat', quantity: 4, unit: 'count', lowStockAt: 1 },
+// ];
 
 const CATEGORY_ORDER = ['Dairy and eggs', 'Produce', 'Meat', 'Pantry', 'Other'];
 
@@ -294,16 +294,6 @@ export function InventoryScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Last scan summary — placeholder until the camera flow feeds real data in */}
-          <View style={styles.scanCard}>
-            <View style={styles.scanIconWrap}>
-              <Ionicons name="cube-outline" size={22} color="#5C8A66" />
-            </View>
-            <View>
-              <Text style={styles.scanTitle}>Last scanned</Text>
-              <Text style={styles.scanSubtitle}>2 hours ago · {inventory.length} items detected</Text>
-            </View>
-          </View>
 
           {groupedByCategory.map((group) => (
             <View key={group.category} style={{ marginBottom: 16 }}>
@@ -358,7 +348,7 @@ export function InventoryScreen() {
             </View>
           ))}
 
-          <Text style={styles.sectionLabel}>Recent activity</Text>
+          {/* <Text style={styles.sectionLabel}>Recent activity</Text>
           <View style={styles.activityCard}>
             {activityLog.length === 0 ? (
               <Text style={styles.emptyText}>No recipes made yet</Text>
@@ -370,7 +360,7 @@ export function InventoryScreen() {
                 </View>
               ))
             )}
-          </View>
+          </View> */}
 
           {/* --- Manual add — for anything the AI scan missed --- */}
           <Text style={styles.sectionLabel}>Add missed item</Text>
