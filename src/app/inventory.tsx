@@ -100,7 +100,7 @@ function CategoryIcon({ category, size = 15 }) {
 }
 
 export function InventoryScreen() {
-  const [inventory, setInventory] = useState(INITIAL_INVENTORY);
+  const [inventory, setInventory] = useState([]);
 
   // Tracks whether we've finished attempting to read saved data from
   // AsyncStorage yet. This matters a lot — see the two useEffects below for why.
