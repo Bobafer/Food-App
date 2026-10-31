@@ -1,4 +1,4 @@
-# ClicktoCook Support
+# Click&Cook Support
 
 Welcome to Click&Cook Support!
 
@@ -46,6 +46,6 @@ for using Click&Cook!
 
 ## Privacy
 
-For information about how ClicktoCook handles
+For information about how Click&Cook handles
 your information, please review our
 [Privacy Policy] http://bobafer.github.io/Food-App/ 
